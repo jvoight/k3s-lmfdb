@@ -1,0 +1,27 @@
+load "k3pic.mag";
+lats20 := [LatticeWithGram(CartanMatrix(i)): i in ["E8E8A2","E8E8A1A1","E8D9A1","E8A10","E8E6D4"]];
+// why didn't I just do e8 + e8 + [2,1,1,4]?
+u := SymmetricMatrix([0,1,0]);
+uu := DiagonalJoin(u,u);
+euu := DiagonalJoin(CartanMatrix("e8"),uu);
+Z12 := RSpace(Z,12,euu);
+Z2 := RSpace(Z,2);
+to2 := hom<Z12->Z2|[[(x,y): y in [Z12.9-Z12.10,Z12.10+Z12.11-2*Z12.12]]: x in Basis(Z12)]>;
+Insert(~lats20,3,LatticeWithGram(DiagonalJoin(CartanMatrix("e8"),LLLGram(GramMatrix(Kernel(to2))))));
+nbs := [];
+
+for l in lats20 do
+  Append(~nbs,neighbours(l));
+  "found", #nbs[#nbs], "neighbours of lattice with discriminant", Determinant(l);
+end for;
+
+"computing 2-neighbour graphs";
+grs := [];
+for n in nbs do
+  time Append(~grs,nb_graph(n));
+end for;
+
+SetOutputFile("data20.mag");
+[[Eltseq(GramMatrix(i)): i in n]: n in nbs];
+grs:Magma;
+UnsetOutputFile();

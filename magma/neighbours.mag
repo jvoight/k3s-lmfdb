@@ -1,0 +1,175 @@
+function root_sub(lat)
+  sl := sub<lat|ShortestVectors(lat)>;
+  Zn := RSpace(Z,Dimension(lat));
+  slzn := sub<Zn|[Eltseq(i): i in ShortestVectors(lat)]>;
+  tor := Moduli(Saturation(slzn)/slzn);
+  od := OrthogonalDecomposition(sl);
+  rl := {*Strings()|*};
+  if Minimum(lat) eq 2 then
+    for i in od do
+      sdi := IntegerToString(Dimension(i));
+      for l in ["A","D","E"] do
+	if IsIsomorphic(i,LatticeWithGram(CartanMatrix(l*sdi))) then
+	  Include(~rl,l*sdi);
+	  continue i;
+	end if;
+      end for;
+      error "impossible root lattice", Eltseq(GramMatrix(lat));
+    end for;
+  end if;
+  return rl,tor,#ShortVectors(lat,4,4);
+end function;
+
+function dualgp(rs)
+  if ISA(Type(rs),Lat) then rs := RSpace(Z,Rank(rs),GramMatrix(rs)); end if;
+  gm := GramMatrix(rs);
+  gmq := ChangeRing(gm,Q);
+  gmqinv := gmq^-1;
+  den := LCM([Denominator(i): i in Eltseq(gmqinv)]);
+  Zn := AbelianGroup([0: i in Rows(gm)]);
+  sub1 := sub<rs|[Eltseq(den*i): i in Rows(gmqinv)]>;
+  sub2 := sub<sub1|[den*i: i in Basis(rs)]>;
+  dg,dgto := quo<sub1|sub2>;
+  assert #dg eq AbsoluteValue(Determinant(GramMatrix(rs)));
+  ag := AbelianGroup(Moduli(dg));
+  function q(x)
+    xdg := dg!Eltseq(x);
+    xup := xdg@@dgto;
+    pr := Integers(2*den)!((xup,xup)/den);
+    return pr;
+  end function;
+
+  return dg,dgto,q,ag;
+end function;
+
+function same_dual(q1,ag1,q2,ag2: signs := [1,-1])
+  if not IsIsomorphic(ag1,ag2) then return false; end if;
+  val1 := {*q1(i): i in ag1*}; val2 := [{*s*q2(i): i in ag2*}: s in signs];
+  goodsigns := [signs[x]: x in [1..#signs]|val1 eq val2[x]];
+  if #goodsigns eq 0 then return false; end if;
+  if IsCyclic(ag1) then
+    r := rep{x: x in ag2|exists{s: s in goodsigns|s*q2(x) eq q1(ag1.1)}};
+    match := hom<ag1->ag2|r>;
+    return true, match;
+  end if;
+
+  for s in goodsigns do
+    genims := [{x: x in ag2|Order(x) eq Order(ag1.i) and s*q2(x) eq q1i} where q1i is q1(ag1.i): i in [1..Ngens(ag1)]];
+    stack := [[x]: x in genims[1]];
+    while #stack gt 0 do
+      check := stack[#stack];
+      Remove(~stack,#stack);
+      extend := [Append(check,i): i in genims[#check+1]|forall{j: j in [1..#check]|q1(ag1.j+ag1.(#check+1)) eq s*q2(check[j]+i)}];
+      if #extend gt 0 and #extend[1] eq Ngens(ag1) then
+	match := hom<ag1->ag2|extend[1]>;
+	assert #Kernel(match) eq 1;
+	assert forall{c: c in ag1|q1(c) eq s*q2(match(c))};
+	return true,match;
+      end if;
+      stack cat:= extend;
+    end while;
+  end for;
+  return false;
+end function;
+
+function esslat(v,w,rs)
+  Z2 := RSpace(Z,2);
+  to2 := hom<rs->Z2|[[(x,y): y in [v,w]]: x in Basis(rs)]>;
+  lat := LatticeWithGram(-GramMatrix(Kernel(to2)));
+  return lat;
+end function;
+
+// divide the vectors in vs by n and produce a new space and map to it
+function divide_vecs(rs,vs,n)
+  error if exists{w: v in vs, w in Basis(rs)|not IsDivisibleBy((v,w),n)}, "vector divided by integer is not in the dual";
+  error if exists{v: v in vs|not IsDivisibleBy((v,v),n^2)}, "dividing by integer gives a vector of nonintegral norm";
+  error if exists{v: v,w in vs|not IsDivisibleBy((v,w),n^2)}, "vectors cannot simultaneously be divided by integer";
+  subn := sub<rs|[n*i: i in Basis(rs)],vs>;
+  basn := Basis(subn);
+  grn := GramMatrix(subn);
+  assert forall{r: r in Eltseq(grn)|IsDivisibleBy(r,n^2)};
+  grndiv := Matrix([[i div n^2: i in Eltseq(r)]: r in Rows(grn)]);
+  newrs := RSpace(Z,Nrows(grn),grndiv);
+  tonew := hom<rs->newrs|[Solution(Matrix(basn),n*i): i in Basis(rs)]>;
+  assert forall{v: v,w in Basis(rs)|(v,w) eq (tonew(v),tonew(w))};
+  return newrs, tonew;
+end function;
+
+divide_vec := func<rs,v,n|r,t where r,t is divide_vecs(rs,[v],n)>;
+
+function neighbours(pd:bd := Infinity(),thorough := false, avoid := {}, target := <{*"A999"*},[1001]>, lose_mass := 0, p := 2, show := false, done := {@@}, max_nonroot := Infinity(), aut_gp_fn := AutomorphismGroup, isom_fn := IsIsomorphic, nb_fn := Neighbours)
+  _ := aut_gp_fn(pd);
+  mass := Mass(pd) - lose_mass;
+  todo := {@pd@}; rss := [];
+  cp := Cputime();
+  ct := 0;
+  while #todo gt 0 and #done lt bd and &+[Q|1/#aut_gp_fn(i): i in done] lt mass do
+    ct +:= 1;
+    if ct mod 100 eq 0 then
+      printf "%o done, %o found, %o left, time taken %o\n", ct, #done, #todo, Cputime(cp);
+    else printf ".";
+    end if;
+    ind := Random(1,#todo);
+    if <a,b,c> in avoid where a,b,c is root_sub(todo[ind]) then printf "b"; continue; end if;
+    // if forall{r: r in done|(<a,b,c> ne <d,e,f> where a,b,c is root_sub(todo[ind]) where d,e,f is root_sub(r)) or (thorough and not isom_fn(todo[ind],r))} then
+    if forall{r: r in [1..#done]|(<a,b,c> ne rss[r] where a,b,c is root_sub(todo[ind])) or (thorough and not isom_fn(todo[ind],done[r]))} then
+      nlat := [LatticeWithGram(GramMatrix(n)): n in nb_fn(todo[ind],p)];
+      if <a,b,c> notin avoid where a,b,c is root_sub(todo[ind]) then
+	Include(~done,todo[ind]);
+	if show then Eltseq(GramMatrix(todo[ind])); end if;
+	Append(~rss,<a,b,c> where a,b,c is root_sub(todo[ind]));
+        // this could show up as 0 without being 0
+	Append(Append(<a,b,c> where a,b,c is root_sub(todo[ind]),RealField(5)!(mass-&+[1/#aut_gp_fn(i): i in done])),#aut_gp_fn(todo[ind]));
+        if #[x: x in done|Rank(x) ne Rank(sub<x|ShortestVectors(x)>)] gt max_nonroot then return done,rss; end if;
+      end if;
+      todo := {@todo[i]: i in [1..#todo]|i ne ind@};
+      if &+[1/#aut_gp_fn(i): i in done] ne mass then
+	todo join:= (thorough select {@x: x in nlat|(<a,b,c> notin avoid where a,b,c is root_sub(x)) and forall{i: i in done|not isom_fn(x,i)}@} else {@x: x in nlat|<a,b,c> notin rss where a,b,c is root_sub(x)@});
+      end if;
+    else
+      todo := {@todo[i]: i in [1..#todo]|i ne ind@};
+    end if;
+    // error if &+[1/#aut_gp_fn(i): i in done] gt mass, "too heavy";
+    if exists{r: r in rss|<r[1],r[2]> eq target} then return done, rss; end if;
+  end while;
+  return done,rss;
+end function;
+
+function nb_graph(lats: aut_gp_fn := AutomorphismGroup, isom_fn := IsIsomorphic, silent := false)
+  rss := [<a,b,c> where a,b,c is root_sub(i): i in lats];
+  gr := Graph<{1..#lats}|>;
+  Z21 := quo<v|2*v.1> where v is RSpace(Z,1);               
+  for li in [1..#lats] do
+    l := lats[li];
+    lz := RSpace(Z,Rank(l),GramMatrix(l));
+    autl := aut_gp_fn(l);
+    autmod2 := ChangeRing(autl,GF(2));
+    v := VectorSpace(autmod2);
+    orbs := Orbits(autmod2);
+    for i in orbs do
+      r := l!Rep(i);
+      if forall{v: v in Basis(l)|IsEven((r,v))} then continue; end if;
+      k := Kernel(hom<lz->Z21|[[(lz!r,s)]: s in Basis(lz)]>);
+      assert k ne lz;
+      lk := LLLGram(GramMatrix(k));
+      lllk := RSpace(Z,Rank(l),lk);
+      subl := LatticeWithGram(lk);
+      // and now we enlarge it back
+      ker2 := Kernel(ChangeRing(lk,GF(2)));
+      div2 := [lllk!Eltseq(i): i in ker2|i ne 0];
+      div2 := [x: x in div2|(x,x) mod 8 eq 0];
+      // should break these into orbits for proper counting
+      for d in div2 do
+        kd := divide_vec(lllk,d,2);
+        lkd := LatticeWithGram(LLLGram(GramMatrix(kd)));
+        cands := [i: i in [1..#lats]|r eq rss[i]] where r is <a,b,c> where a,b,c is root_sub(lkd);
+        ans := rep{r: r in cands|r eq cands[#cands] or isom_fn(lats[r],lkd)};
+        if li ne ans then
+          if not silent and not (v!li adj v!ans) where v is VertexSet(gr) then printf "%o ", <li,ans>; end if;
+          AddEdge(~gr,li,ans);
+        end if;
+      end for;
+    end for;
+  end for;
+  return gr;
+end function;
