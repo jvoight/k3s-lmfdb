@@ -253,14 +253,7 @@ def create_genus_label(genus_sym):
     compart_symbol = sum([1 << e for e in comparts])
     # note that the compart_symbol will be even if and only if the lattice is even
     compart_nbits = block_n
-    bits += ZZ(compart_symbol).digits(2, padto=compart_nbits)
-
-    # we can actually extract the train data from the compartments data
-    # we will get rid of it later on, for now we keep it
-    # trains are in correspondece with subsets of {0..block_n-2}
-    trains_symbol = sum([1 << e for e in train_ends[:-1]])
-    train_nbits = block_n-1
-    bits += ZZ(trains_symbol).digits(2, padto=train_nbits)  
+    bits += ZZ(compart_symbol).digits(2, padto=compart_nbits) 
     
     oddities = [sum([s2.canonical_symbol()[t][4] for t in cmpart]) % 8 for cmpart in s2.compartments()]
     oddities_symbol = sum([o*(1 << (3*i)) for i,o in enumerate(oddities)])
@@ -326,35 +319,46 @@ def genus_symbol_from_label(label):
         symbols[0][i][3] = compart_bits[i]
 
     compartments = []
+    trains = []
     in_compartment = False
+    train_start = 0
     for i in range(num_blocks_2):
-        if (compart_bits[i] == 1) and not in_compartment:
-            compart_start = i
-            in_compartment = True
-        elif (compart_bits[i] == 0) and in_compartment:
-            in_compartment = False
-            compartments.append([j for j in range(compart_start, i+1)])
-        elif in_compartment:
-            if symbols[0][i][0] - symbols[0][i-1][0] > 1:
-                compartments.append([j for j in range(compart_start, i)])
+        if i > 0:
+            scale_diff = symbols[0][i][0] - symbols[0][i-1][0]
+            if (scale_diff > 2) and (i > train_start):
+                trains.append([j for j in range(train_start,i)])
+                train_start = i
+            
+        if compart_bits[i] == 1:
+            if in_compartment:
+                if (i > 0) and (scale_diff > 1):
+                    compartments.append([j for j in range(compart_start, i)])
+                    compart_start = i
+            if not in_compartment:
                 compart_start = i
+                in_compartment = True
+                if (i > train_start) and (scale_diff > 1):
+                    trains.append([j for j in range(train_start,i)])
+                    train_start = i
+        else: # compart_bits[i] == 0
+            if in_compartment:
+                in_compartment = False
+                compartments.append([j for j in range(compart_start, i+1)])
+                if (i > train_start) and (scale_diff == 2):
+                    trains.append([j for j in range(train_start,i)])
+                    train_start = i
+            else:
+                if (i > train_start):
+                    trains.append([j for j in range(train_start,i)])
+                    train_start = i
+                
     if in_compartment:
         compartments.append([j for j in range(compart_start, num_blocks_2)])
+
+    trains.append([j for j in range(train_start, num_blocks_2)])
             
     local_data >>= num_blocks_2
     
-    train_bits = (local_data % (1 << (num_blocks_2-1))).digits(2, padto=num_blocks_2-1)
-    
-    train_symbol = [i for i in range(num_blocks_2-1) if train_bits[i] == 1]
-    if len(train_symbol) == 0:
-        trains = [[i for i in range(num_blocks_2)]]
-    else:
-        trains = [[i for i in range(train_symbol[0]+1)]]
-        trains += [[i for i in range(train_symbol[j]+1, train_symbol[j+1]+1)] for j in range(len(train_symbol)-1)]
-        trains += [[i for i in range(train_symbol[-1]+1,num_blocks_2)]]
-
-    local_data >>= num_blocks_2 - 1
-
     oddity_bits = (local_data % (1 << (3*len(compartments)))).digits(2, padto=3*len(compartments))
 
     oddity_nums = [oddity_bits[3*i:3*(i+1)] for i in range(len(compartments))]
