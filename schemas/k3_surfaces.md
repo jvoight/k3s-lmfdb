@@ -1,10 +1,13 @@
-Name: `k3_periods`
+Name: `k3_surfaces`
 
-Note: every period must have a model associated to it
+This table stores unpolarized K3 surfaces, up to isomorphism of varieties.  The central tool for doing so is the period, represented as a vector of complex numbers of length k (the rank of the transcendental lattice), together with an embedding of the transcendental lattice into II_{3,19}.
+
+Note: every period must have a model associated to it, stored in the `k3_polarized` table.  This is required in order to provide an exact object underlying the given approximation.
 
 | Column | Type | Description |
 | --- | --- | --- |
-| label | text | TODO |
+| label | text | Label is LAT.isog.n, where LAT is the lattice label for the Picard lattice, isog is a counterenumerating isogeny classes ordered just by when the isogeny class was first added to the database (encoded using a lower case Cremona letter code) and n is a positive integer counter based on when each curve within an isogeny class was added |
+| isogeny_class | text | Label for the isogeny class, which is LAT.isog |
 | picard_lattice | text | label for Pic(X) as a lattice (and thus an entry in k3_families) |
 | transcendental_lattice | text | label for the trancendental lattice (rank k) |
 | transcendental_embedding | numeric[] | k by 22 integer matrix giving the embedding of T into II_{3,19} |

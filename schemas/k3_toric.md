@@ -1,4 +1,6 @@
-Name: `toric_k3s`
+Name: `k3_toric`
+
+This table stores toric K3 families, which are parameterized by either weighted projective space or reflexive polytopes.  Given a toric family, there are two ways to get a lattice parameterized family out.
 
 | Column | Type | Description |
 |---|---|--- |

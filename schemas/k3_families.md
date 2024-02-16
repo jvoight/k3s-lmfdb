@@ -1,5 +1,9 @@
 Table name: `k3_families`
 
+This table stores families of K3 surfaces, organized by their Picard lattice (indeed, the label is just taken from the label of the label).
+
+Question: Is the isomorphism class of the transcendental lattice determined by Pic(X)?
+
 | Column    | Type    | Description    |
 | ----------- | -------------- | --------------- |
 | picard_lattice | text |  label of the indefinite lattice  isometric to Pic(X) |

@@ -1,6 +1,8 @@
-Table name: `k3_surface_models`
+Table name: `k3_family_models`
 
-| Column |Type | Description |
+This table stores models for lattice polarized K3-families and families of elliptic surfaces.
+
+| Column | Type | Description |
 | --- | --- | --- |
 | K3_family| text | label of the K3 family |
 | elliptic_surface| text | label of the elliptic surface |
@@ -8,5 +10,5 @@ Table name: `k3_surface_models`
 | model_type | smallint | type of model - projective, toric, complete intersection|
 | singularity_types | text[] | types of singularities |
 | dont_display | boolean | true if we want to display on page |
-| equation | text[] | equations defining the model as text to be displayed|
+| equation | text[] | equations defining the model as text to be displayed |
 | degrees | integer[] | list of lists of degrees |
