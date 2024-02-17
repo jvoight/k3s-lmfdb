@@ -14,3 +14,4 @@ They are labeled by the lattice label for L.
 | multiplicity | integer | number of inequivalent fibrations with the same lattice L |
 | mw_pairing |text | label of the quadratic form on Mordel-Weil, scaled to be integral|
 | mw_denom | integer | scaling factor for mw_pairing |
+| aut_group | integer[] | generators for the automorphism group of the elliptic fibration (automorphisms of the surface that preserve the fibration) |
