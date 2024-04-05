@@ -1,3 +1,4 @@
+import os
 from functools import reduce
 
 from sage.rings.integer_ring import ZZ
@@ -142,12 +143,9 @@ def all_diadic_genus_symbols(n_plus, n_minus, det, odd_symbols, is_even=True):
             comps = []
             for block in blocks:
                 oddities = []
-                if block[0] == 0:
+                if (block[0] == 0) and is_even:
                     # if the scaling is trivial and we want an even lattice, we cannot have any oddity
-                    if is_even:
-                        oddities = [[0,0]]
-                    else:
-                        oddities = [[0,0]] + [[1,o] for o in range(8)]
+                    oddities = [[0,0]]
                 elif block[1] == 1:
                     if block[2] == 1: 
                         oddities = [[1,1],[1,7]]
@@ -553,11 +551,13 @@ def conway_symbol(genus_symbol):
     r,s = genus_symbol.signature_pair()
     prefix = roman_numeral + "_{" + str(r) + "," + str(s) + "}"
     local_part = "".join([conway_symbol_local_part(s) for s in genus_symbol.local_symbols()])
-    return prefix + "(" + local_part + ")"
+    if len(local_part) > 0:
+        return prefix + "(" + local_part + ")"
+    return prefix
 
 def flat_mat(mat):
     rows = [list(x) for x in mat.rows()]
-    return reduce(lambda x,y: x+y, rows)
+    return reduce(lambda x,y: x+y, rows,[])
 
 def create_genus_entry(genus_symbol, hecke_primes=[2]):
     '''
@@ -587,20 +587,28 @@ def create_genus_entry(genus_symbol, hecke_primes=[2]):
     h = len(genus_symbol.representatives())
     table_row['class_number'] = h
 
-    mass = genus_symbol.mass()
-    table_row['mass'] = [mass.numerator(), mass.denominator()]
+    if genus_symbol.signature() == genus_symbol.rank():
+        mass = genus_symbol.mass()
+        table_row['mass'] = [mass.numerator(), mass.denominator()]
+    else:
+        table_row['mass'] = None
     
     lat = genus_symbol.representative()
     hecke_mats = {}
     hecke_polys = {}
-    for p in hecke_primes:
-        hecke_mag = magma.AdjacencyMatrix(magma.Genus(magma.LatticeWithGram(lat)),p)
-        hecke_mats[p] = list(magma.Eltseq(hecke_mag))
-        hecke_mat = matrix(ZZ, h, h, hecke_mats[p])
-        hecke_poly_fac = list(hecke_mat.charpoly().factor())
-        hecke_polys[p] = [[fa[0].list(), fa[1]] for fa in hecke_poly_fac]
-    table_row['adjacency_matrix'] = hecke_mats
-    table_row['adjacency_polynomials'] = hecke_polys
+
+    if genus_symbol.signature() == genus_symbol.rank():
+        for p in hecke_primes:
+            hecke_mag = magma.AdjacencyMatrix(magma.Genus(magma.LatticeWithGram(lat)),p)
+            hecke_mats[p] = [ZZ(x) for x in list(magma.Eltseq(hecke_mag))]
+            hecke_mat = matrix(ZZ, h, h, hecke_mats[p])
+            hecke_poly_fac = list(hecke_mat.charpoly().factor())
+            hecke_polys[p] = [[fa[0].list(), fa[1]] for fa in hecke_poly_fac]
+        table_row['adjacency_matrix'] = hecke_mats
+        table_row['adjacency_polynomials'] = hecke_polys
+    else:
+        table_row['adjacency_matrix'] = None
+        table_row['adjacency_polynomials'] = None
     
     return table_row
 
@@ -625,7 +633,7 @@ def write_header_to_file(fname, sep = "|", col_type=COL_TYPE_LATIICE_GENUS):
     # we want to have a well defined order, matching the entries
     fields = sorted(list(col_type.keys()))
 
-    header_lines = [sep.join(fields), sep.join([col_type[k] for k in fields]), ""]
+    header_lines = [sep.join(fields), sep.join([col_type[k] for k in fields]), "\n"]
     
     header = "\n".join(header_lines)
     
@@ -638,7 +646,9 @@ def value_to_postgres(val):
     if type(val) == list:
         return str(val).replace('[', '{').replace(']','}')
     if type(val) == tuple:
-        return str(val).replace('(', '{').replace(')','}')
+        return value_to_postgres(list(val))
+    if type(val) == str:
+        return '"' + val + '"'
     if type(val) == dict:
         d = {}
         for k in val.keys():
@@ -654,7 +664,9 @@ def write_entries_to_file(entries, fname, sep = "|", col_type=COL_TYPE_LATIICE_G
     lines = [sep.join([value_to_postgres(entry[k]) for k in fields]) for entry in entries]
     output = "\n".join(lines)
     f = open(fname, "a")
-    f.write(output)
+    num = f.write(output)
+    if (num > 0):
+        f.write("\n")
     f.close()
     return
 
@@ -663,4 +675,27 @@ def write_header_and_entries(entries, fname, sep = "|", col_type=COL_TYPE_LATIIC
     write_entries_to_file(entries, fname, sep = sep, col_type=col_type)
     return
 
+def write_all_of_sig_up_to_det(n_plus, n_minus, det):
+    '''
+    Create data file with all genera of a certain signature with determinant up to det.
+    '''
+    if not os.path.exists("data"):
+        os.makedirs("data")
+    fname = "data/genera_signature_%s_%s.tbl" % (n_plus, n_minus)
+    write_header_to_file(fname)
+    for d in range(1, det):
+        print("determinant = %s" % d)
+        syms = all_genus_symbols(n_plus, n_minus, d, is_even=False)
+        entries = [create_genus_entry(s) for s in syms]
+        write_entries_to_file(entries, fname)
+    return
 
+def write_all_up_to_det(rank, det):
+    '''
+    Create data files with all genera of a certain rank with determinant up to det.
+    '''
+    for n_minus in range(rank // 2 + 1):
+        n_plus = rank - n_minus
+        print("signature = (%s,%s)" %(n_plus, n_minus)) 
+        write_all_of_sig_up_to_det(n_plus, n_minus, det)
+    return
