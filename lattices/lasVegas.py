@@ -266,7 +266,7 @@ def primitiveRepresentationOddPrimes(tau1, tau2unreduced, tUnreduced, p, Kp):
     return (lx1,lx2)
 
 def primitiveRepresentationFourTypeI(tauUnreduced, tUnreduced, k):
-    """tauUnreduced: list of four integers tau1, ..., tau4 s.t. v2(tau1)≤v2(tau2)≤v2(tau3)≤'vtau(4)
+    """tauUnreduced: list of four integers tau1, ..., tau4 s.t. v2(tau1)≤v2(tau2)≤v2(tau3)≤v2tau(4)
     kUnreduced: positive integer
     
     see lemma 24"""
@@ -390,21 +390,29 @@ def getE2S2type(globalGenus):
     det = globalGenus.determinant()
 
     blockDiagonalList = dyadicBlockRepresentative(globalGenus) #sorted by rank already
-    existsTypeIIblock = False
+    existsTypeIIconstituent = False
     for i, block in enumerate(blockDiagonalList):
         if block.nrows() == 2: #if constituent is type II
             existsTypeIIconstituent = True
-            e2 = block[1,0].valuation(2) + 1
+
+            a = block[0,0]
+            b = block[1,0]
+            c = block[1,1]
+            e2 = b.valuation(2) + 1
+
+            if a.valuation(2) < c.valuation(2):
+                block[0,0] = c
+                block[1,1] = a
             
             blockDiagonalList.pop(i) #we're destined to return the function atp so this stuff doesn't matter
             blockDiagonalList.insert(0,block)
 
             return (e2, blockDiagonalList, 2)
-        else: #all constituents are type I
-            e2 = blockDiagonalList[3].valuation(2)
+    if not existsTypeIIconstituent: #all constituents are type I
+        e2 = blockDiagonalList[3][0,0].valuation(2)
 
-            firstFour = blockDiagonalList[:4] #as specified on pg 34
-            return (e2, firstFour[::-1] + blockDiagonalList[4:], 1)
+        firstFour = blockDiagonalList[:4] #as specified on pg 34
+        return (e2, firstFour[::-1] + blockDiagonalList[4:], 1)
 
 def primitivelyRepresentedTWithRepresentations(globalGenus):
     """globalGenus: sage GenusSymbol_global_ring object; degree at least 4
@@ -467,7 +475,8 @@ def primitivelyRepresentedTWithRepresentations(globalGenus):
             oddPrimesSelectedPair.append((1,2))
     
     #step iii: compute e_2
-    e2, S2, repType = getE2S2type(globalGenus)
+    e2, S2list, repType = getE2S2type(globalGenus)
+    S2 = block_diagonal_matrix(S2list)
     
     #step iv: compute r
     r = prod([relevantOddPrimes[i]**eOddPrimesParities[i] for i in range(len(relevantOddPrimes))]) * multiplySign * 2**(e2%2)
@@ -485,7 +494,7 @@ def primitivelyRepresentedTWithRepresentations(globalGenus):
             eOddPrimes.append(oddPrimeEqualPairValue[i][0]) #set e_p := i_a
             oddPrimeRepresentedByFirstEntry.append(True)
 
-            firstEntryIndex = oddPrimesSelectedPair[0]
+            firstEntryIndex = oddPrimesSelectedPair[i][0]
             firstEntry = diagonal[firstEntryIndex] #could do assert tau = firstEntry
             diagonal.pop(firstEntryIndex)
             diagonal.insert(0,firstEntry)
@@ -507,25 +516,56 @@ def primitivelyRepresentedTWithRepresentations(globalGenus):
             SOddPrimes.append(diagonal_matrix(ZZ, newdiagonal))
 
     #step vi: finish
-    t =  prod([p**eOddPrimes[i] for i,p in enumerate(relevantOddPrimes)]) * multiplySign * 2**(eTwo%2)
+    t =  prod([p**eOddPrimes[i] for i,p in enumerate(relevantOddPrimes)]) * multiplySign * 2**(e2%2)
 
     representations = []
     #lol jk step 68: find x, A for p = 2
+    K2 = e2*(n-1)+det.valuation(2)+3
+    if repType == 2:
+        x1, x2 = primitiveRepresentationTypeII(S2list[0], t, K2)
+        x = matrix(ZZ, [[x1],[x2]]+[[0] for i in range(n-2)])
+        Atop = matrix(ZZ, [[0 for i in range(n-1)]])
+        Abottom = diagonal_matrix(ZZ, [inverse_mod(x1, 2**K2)]+[1 for i in range(n-2)])
+        A2 = block_matrix([[Atop],
+                         [Abottom]])
+    else:
+        x1, x2, x3, x4 = primitiveRepresentationFourTypeI([i[0,0] for i in S2list[:4][::-1]], t, K2)
+        x = matrix(ZZ, [[x4],[x3],[x2],[x1]]+[[0] for i in range(n-4)])
+        Atop = matrix(ZZ, [[0 for i in range(n-1)]])
+        Abottom = diagonal_matrix(ZZ, [inverse_mod(x4, 2**K2)]+[1 for i in range(n-2)])
+        A2 = block_matrix([[Atop],
+                         [Abottom]])
+        
+    assert matrix(Zmod(2**K2),x.transpose()*S2*x)[0,0] == Zmod(2**K2)(t)
+
+    representations.append((2, S2, x,A2))
 
     #lol jk step 69: find x, A for odd primes p
     for i, p in enumerate(relevantOddPrimes):
         S = SOddPrimes[i]
         Kp = eOddPrimes[i]*(n-1)+det.valuation(p)+1
+        R = Zmod(p**Kp)
         if oddPrimeRepresentedByFirstEntry[i]: #if we can represent w/ first entry in S
-            firstVar = sqrt_mod(t*inverse_mod(S[0],p**Kp),p**Kp)
-            x = matrix(ZZ,[[x]]+[[0] for i in range(n-1)])
-            Atop = matrix(ZZ, [[0 for i in range(n)]])
-            Abottom = diagonal_matrix(ZZ, [inverse_mod(x)]+[1 for i in range(n-1)])
+            firstVar = ZZ(sqrt(R(t)/R(S[0,0])))
+            x = matrix(ZZ,[[firstVar]]+[[0] for i in range(n-1)])
+            Atop = matrix(ZZ, [[0 for i in range(n-1)]])
+            Abottom = diagonal_matrix(ZZ, [ZZ(R(1)/R(firstVar))]+[1 for i in range(n-2)])
             A = block_matrix([[Atop],
                               [Abottom]])
         else: #we can represent w/ first two entries in S
             d1 = S[0]
             d2 = S[1]
+            commonFactor = p**d2.valuation(p)
+            x1,x2 = primitiveRepresentationOddPrimes(d2/commonFactor, d1/commonFactor, t/commonFactor, p, Kp)
+            x = matrix(ZZ, [[x1],[x2]]+[[0] for i in range(n-2)])
+            Atop = matrix(ZZ, [[0 for i in range(n-1)]])
+            Abottom = diagonal_matrix(ZZ, [ZZ(R(1)/R(x1))]+[1 for i in range(n-2)])
+            A = block_matrix([[Atop],
+                              [Abottom]])
+
+        assert matrix(R,x.transpose()*S*x)[0,0] == R(t)
+        block_matrix(R,[[x,A]]).determinant()
+        assert block_matrix(R,[[x,A]]).determinant() == R(1)
 
         representations.append((p, S, x, A))
 
@@ -813,9 +853,25 @@ if __name__ == "__main__":
 
 
     #TEST IF GENERATION OF REPRESENTATIVE OF t BY tau1 x1^2 + ... + tau4x4^2 (mod 2^k) WORKS (SEE FUNCTION DESCRIPTION FOR PRECONDITIONS)
-    print(primitiveRepresentationFourTypeI([ZZ(99), ZZ(304), ZZ(112), ZZ(192)], ZZ(64), ZZ(12)))
+    # print(primitiveRepresentationFourTypeI([ZZ(99), ZZ(304), ZZ(112), ZZ(192)], ZZ(64), ZZ(12)))
 
-    # print(f"OUTPUT: {dubeyHolensteinLatticeRepresentative(inputGenus)} \n_________")
+    
+
+    #TEST IF primitivelyRepresentedTWithRepresentations WORKS
+    A = matrix(ZZ, [[64,0,0,0,0,0,0,0,4],
+                [0,2,0,2,0,1,0,3,0],
+                [0,0,3,0,0,0,0,0,0],
+                [0,2,0,4,0,1,0,1,0],
+                [0,0,0,0,5,0,0,0,0],
+                [0,1,0,1,0,6,0,2,0],
+                [0,0,0,0,0,0,7,0,0],
+                [0,3,0,1,0,2,0,8,0],
+                [4,0,0,0,0,0,0,0,4]])
+    inputGenus = Genus(A)
+    print(f"INPUT GENUS: {inputGenus} \n_________")
+    print(primitivelyRepresentedTWithRepresentations(inputGenus))
+
+
 
 
 
