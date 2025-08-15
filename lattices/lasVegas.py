@@ -26,9 +26,35 @@ from sage.quadratic_forms.genera.normal_form import p_adic_normal_form
 from sage.matrix.constructor import zero_matrix
 from sage.arith.all import crt
 from sage.quadratic_forms.genera.genus import Genus
+from sage.libs.pari import pari
 from random import randint
 from math import prod
 from itertools import product
+
+def symbolList(globalGenus):
+    return "\n".join([str(i.symbol_tuple_list()) for i in globalGenus.local_symbols()])
+def genusFromSymbolLists(signaturePair, tupleLists):
+    """tupleLists: list of pairs (p, tupleList)"""
+    return GenusSymbol_global_ring(signaturePair, [Genus_Symbol_p_adic_ring(i[0], i[1]) for i in tupleLists])
+
+def makeSmall(L, signaturePair):
+    """does LLL on the matrix L of integers
+    signaturePair can be calculated off of L but im lazy"""
+    # sig = self.signature_pair_of_matrix()
+    # if sig[0] * sig[1] != 0:
+    #     from sage.env import SAGE_EXTCODE
+    #     m = pari(L)
+    #     pari.read(Path(SAGE_EXTCODE) / "pari" / "simon" / "qfsolve.gp")
+    #     m = pari('qflllgram_indefgoon')(m)
+    #     # convert the output string to sage
+    #     L = m.sage()[0]
+    # elif sig[1] != 0:
+    #     U = -(-L).LLL_gram()
+    #     L = U.T * L * U
+    # else:
+    #     U = L.LLL_gram()
+    #     L = U.T * L * U
+    return L
 
 def nonQuadraticResidue(p, randomThreshold = 40):
     """p: ODD prime
@@ -369,7 +395,7 @@ def divideByGCD(localGenus, p, GCD):
         for constituent in tupleList:
             constituent[0] -= pPart
             constituent[2] = ZZ(Zmod(8)(constituent[2]/rest**constituent[1]))
-            constituent[4] = ZZ(Zmod(8)(constituent[4]/rest**constituent[1]))
+            constituent[4] = ZZ(Zmod(8)(constituent[4]/rest))
     return tupleList
 
 def reduceGenus(globalGenus):
@@ -800,7 +826,7 @@ def primitivelyRepresentedIntegerAlmostDividingDetForRankTwoTypeIOdd(globalGenus
     evenPrimitiveTest = globalGenus.local_symbol(2).canonical_symbol()[0][3] == 0 #first (only) constituent is even
     assert all(oddPrimitiveTest) and evenPrimitiveTest, "not a reduced symbol"
 
-def dubeyHolensteinLatticeRepresentative(globalGenus, check=False):
+def dubeyHolensteinLatticeRepresentative(globalGenus, check=False, superDumbCheck=False):
     """globalGenus: sage GenusSymbol_global_ring object
 
     Returns a lattice in the genus
@@ -822,7 +848,9 @@ def dubeyHolensteinLatticeRepresentative(globalGenus, check=False):
 
     reducedGenus, gcdOfGenus = reduceGenus(globalGenus)
     if check:
-        assert is_GlobalGenus(reducedGenus), f"reduced:\n{globalGenus}\nby GCD {gcdOfGenus} incorrectly to:\n{reducedGenus}"
+        assert is_GlobalGenus(reducedGenus), f"reduced:\n{globalGenus}\nby GCD {gcdOfGenus} incorrectly to:\n{reducedGenus}\n\n \
+            Should have been reduced to: \n{Genus(globalGenus.representative()/gcdOfGenus)} \n \n Symbol lists:\n\
+Original:\n{symbolList(globalGenus)} \nRight:\n{symbolList(Genus(globalGenus.representative()/gcdOfGenus))} \nWrong: \n{symbolList(reducedGenus)}"
     det = reducedGenus.determinant()
     relevantPrimes = (2*det).prime_divisors()
 
@@ -831,9 +859,10 @@ def dubeyHolensteinLatticeRepresentative(globalGenus, check=False):
 
     dCongruenceList = []
     hCongruenceList = []
-    xCongruenceList = [] #for debugging purposes TODO delete
-    SCongruenceList = [] #for debugging purposes as well
-    ACongruenceList = [] #for debugging purposes as well
+    if superDumbCheck:
+        xCongruenceList = [] #for debugging purposes TODO delete
+        SCongruenceList = [] #for debugging purposes as well
+        ACongruenceList = [] #for debugging purposes as well
     for representation in representations:
         p = representation[0]
         Sp = representation[1]
@@ -844,15 +873,17 @@ def dubeyHolensteinLatticeRepresentative(globalGenus, check=False):
         localSyms.append(LocalGenusSymbol(Hp,p))
         dCongruenceList.append((p**(q.valuation(p)), dp))
         hCongruenceList.append((p**(q.valuation(p)), Hp))
-        xCongruenceList.append((p**(q.valuation(p)), xp))
-        SCongruenceList.append((p**(q.valuation(p)), Sp))
-        ACongruenceList.append((p**(q.valuation(p)), Ap))
+        if superDumbCheck:
+            xCongruenceList.append((p**(q.valuation(p)), xp))
+            SCongruenceList.append((p**(q.valuation(p)), Sp))
+            ACongruenceList.append((p**(q.valuation(p)), Ap))
     
     d = crtMatrix(dCongruenceList)
     H = crtMatrix(hCongruenceList)
-    x = crtMatrix(xCongruenceList) #TODO delete
-    S = crtMatrix(SCongruenceList) #todo delete aswell
-    A = crtMatrix(ACongruenceList)
+    if superDumbCheck:
+        x = crtMatrix(xCongruenceList) 
+        S = crtMatrix(SCongruenceList)
+        A = crtMatrix(ACongruenceList)
 
     # print(f"det: {reducedGenus.determinant()} (factorization: {factor(reducedGenus.determinant())})")
     # print(f"q: {q} (factorization: {factor(q)})")
@@ -866,41 +897,42 @@ def dubeyHolensteinLatticeRepresentative(globalGenus, check=False):
         newSignaturePair = (signaturePair[1]-1,signaturePair[0])
 
     # print(f"S:\n{S}")
-
-    assert ((x.transpose()*S*x)[0,0]-t)%q == 0
-    assert block_matrix(Zmod(q),[[x,A]]).determinant() == Zmod(q)(1)
+    if superDumbCheck:
+        assert ((x.transpose()*S*x)[0,0]-t)%q == 0
+        assert block_matrix(Zmod(q),[[x,A]]).determinant() == Zmod(q)(1)
     # print(f"[x,A]:\n{block_matrix(Zmod(q),[[x,A]])}")
 
-    assert matrix(Zmod(q), d) == matrix(Zmod(q), x.transpose()*S*A)
-    assert matrix(Zmod(q), H) == matrix(Zmod(q), t*A.transpose()*S*A - d.transpose()*d)
-    # print(f"H:\n{H}")
-    for p in q.prime_divisors():
-        # print(f"\tLocal symbol of H at {p}: {LocalGenusSymbol(H,p)}")
-        assert LocalGenusSymbol(H,p)
+        assert matrix(Zmod(q), d) == matrix(Zmod(q), x.transpose()*S*A)
+        assert matrix(Zmod(q), H) == matrix(Zmod(q), t*A.transpose()*S*A - d.transpose()*d)
+        # print(f"H:\n{H}")
+        for p in q.prime_divisors():
+            # print(f"\tLocal symbol of H at {p}: {LocalGenusSymbol(H,p)}")
+            assert LocalGenusSymbol(H,p) #lol what does this line even do? I have no idea.
     # print(f"H determinant: {H.determinant()} (factorization: {factor(H.determinant()%q)})")
 
     newGenus = GenusSymbol_global_ring(newSignaturePair, localSyms)
-    assert newGenus.determinant() == t**(n-2) * reducedGenus.determinant(), f"\nDeterminant of new genus: {factor(newGenus.determinant())},\nExepcted: {factor(t**(n-2) * reducedGenus.determinant())}"
+    if superDumbCheck:
+        assert newGenus.determinant() == t**(n-2) * reducedGenus.determinant(), f"\nDeterminant of new genus: {factor(newGenus.determinant())},\nExepcted: {factor(t**(n-2) * reducedGenus.determinant())}"
     # print(f"gamma tilda:\n{newGenus}")
     # print(f"det(gamma tilda): {newGenus.determinant()} (factorization: {factor(newGenus.determinant())})")
-
-    assert Zmod(q)(H.determinant()/newGenus.determinant()).is_square()
+        assert Zmod(q)(H.determinant()/newGenus.determinant()).is_square()
     if check:
         assert is_GlobalGenus(newGenus), f"generated genus with no existing representative. From: \n {globalGenus} \n ....reduced to non-existent genus \n {newGenus}" #check if new genus has rep
-    Htild = dubeyHolensteinLatticeRepresentative(newGenus, check)
+    Htild = dubeyHolensteinLatticeRepresentative(newGenus, check, superDumbCheck)
 
     # print(f"H tilda:\n{Htild}")
     Utild = computeChangeOfVariables(Htild, H, q)
-    assert matrix(Zmod(q), Htild) == matrix(Zmod(q), Utild.transpose()*H*Utild)
+    if superDumbCheck:
+        assert matrix(Zmod(q), Htild) == matrix(Zmod(q), Utild.transpose()*H*Utild)
     # print(f"U tilda:\n{Utild}")
 
     bottomRight = (Htild+Utild.transpose()*d.transpose()*d*Utild)/t
     returnMatrixBlock = block_matrix([[t, d*Utild],
                                       [(d*Utild).transpose(), bottomRight]])
-    returnMatrix = matrix(gcdOfGenus*returnMatrixBlock)
+    returnMatrix = makeSmall(matrix(gcdOfGenus*returnMatrixBlock), signaturePair)
 
     assert Genus(returnMatrix) == globalGenus, f"Bad output. Generated representative's genus:\n{Genus(returnMatrix)}\n...versus input genus:\n{globalGenus}"
-
+    
     return returnMatrix
 
 if __name__ == "__main__":

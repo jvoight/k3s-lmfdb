@@ -2,6 +2,7 @@ import lasVegas
 from importlib import reload
 reload(lasVegas)
 import genus
+reload(genus)
 
 import os
 from functools import reduce
@@ -35,13 +36,19 @@ from itertools import product
 
 
 if __name__ == "__main__":
-    signaturePair = (ZZ(5),ZZ(4))
-    det = 2^15*5^9
+    signaturePair = (ZZ(4),ZZ(4))
+    det = 2**4*3**3*13**4
     testCases = genus.all_genus_symbols(signaturePair[0], signaturePair[1], det)
     print(f"{len(testCases)} symbols to compute representatives of")
     for test in testCases:
         # assert is_GlobalGenus(test), f"Test case of:\n{test}is not even a valid genus!"
-        print(lasVegas.dubeyHolensteinLatticeRepresentative(test,False)) #seems like is_GlobalGenus has a bug somewhere lol
+        print(f"Symbols:\n{"\n".join([str(i.symbol_tuple_list()) for i in test.local_symbols()])}\n ____")
+        assert(Genus(test.representative()) == test)
+        lasVegas.dubeyHolensteinLatticeRepresentative(test,check = False,superDumbCheck = True)
 
-    # test = GenusSymbol_global_ring((0,4), [Genus_Symbol_p_adic_ring(2,[[0, 3, 1, 1, 3], [3, 1, 1, 1, 1]])])
-    # print(lasVegas.dubeyHolensteinLatticeRepresentative(test))
+    # test = GenusSymbol_global_ring((3,4), 
+    #                                [
+    #                                    Genus_Symbol_p_adic_ring(2,[[0, 4, 1, 0, 0], [1, 2, 3, 0, 0], [2, 1, 1, 1, 1]]),
+    #                                    Genus_Symbol_p_adic_ring(3,[[0, 3, 1], [1, 3, 1], [2, 1, 1]]),
+    #                                 ])
+    # print(lasVegas.dubeyHolensteinLatticeRepresentative(test, True))
