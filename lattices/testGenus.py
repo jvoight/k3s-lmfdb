@@ -3,6 +3,7 @@ from importlib import reload
 reload(lasVegas)
 import genus
 reload(genus)
+import time
 
 import os
 from functools import reduce
@@ -34,21 +35,55 @@ from random import randint
 from math import prod
 from itertools import product
 
+def compare(testCases):
+    print("Sage algorithm start.")
+    start = time.time()
+    for i, test in enumerate(testCases):
+        test.representative()
+        if i%5 == 4:
+            print(f"{i+1} of {len(testCases)} done.")
+    end = time.time()
+    print(f"Sage algorithm complete in {round(end-start, 2)} seconds.")
+
+    print("Dubey Holenstein algorithm start.")
+    cache = {}
+    start = time.time()
+    for i, test in enumerate(testCases):
+        lasVegas.dubeyHolensteinLatticeRepresentative(test, check=False,superDumbCheck=False,cache=cache)
+        if i%5 == 4:
+            print(f"{i+1} of {len(testCases)} done.")
+    end = time.time()
+    print(f"Dubey Holenstein algorithm complete in {round(end-start, 2)} seconds.")
+    print(len(cache))
+
+def cut(testCases, targetSize):
+    """pick a determined subset of testCases
+    
+    this is just to get a uniform distribution from the list because of the nature of the ordering of the list (helps catch bugs hopefully)"""
+    if targetSize > len(testCases):
+        return testCases
+    else:
+        gap = len(testCases)//targetSize
+        return [testCases[i*gap] for i in range(targetSize)]
 
 if __name__ == "__main__":
-    signaturePair = (ZZ(4),ZZ(4))
-    det = 2**2*3**3
+    signaturePair = (ZZ(5),ZZ(6))
+    det = 2**4 * 17**3 * 23**3
     testCases = genus.all_genus_symbols(signaturePair[0], signaturePair[1], det)
-    print(f"{len(testCases)} symbols to compute representatives of")
-    for test in testCases:
-        # assert is_GlobalGenus(test), f"Test case of:\n{test}is not even a valid genus!"
-        print(f"Symbols:\n{"\n".join([str(i.symbol_tuple_list()) for i in test.local_symbols()])}")
-        assert(Genus(test.representative()) == test)
-        print(f"Representative:\n{lasVegas.dubeyHolensteinLatticeRepresentative(test,check = False,superDumbCheck = True)}\n______")
+    print(f"Loaded {len(testCases)} symbols with determinant {factor(det)} and signature {signaturePair}.")
+    actualTests = testCases
+    compare(actualTests)
+    
+    # test = lasVegas.genusFromSymbolLists((12,6), [(2,[[0, 10, 3, 0, 0], [1, 8, 3, 1, 2]]),
+    #                                               (17,[[0, 12, -1], [1, 6, -1]]),
+    #                                               (23,[[0, 14, -1], [1, 4, -1]])])
 
-    # test = GenusSymbol_global_ring((3,4), 
-    #                                [
-    #                                    Genus_Symbol_p_adic_ring(2,[[0, 4, 1, 0, 0], [1, 2, 3, 0, 0], [2, 1, 1, 1, 1]]),
-    #                                    Genus_Symbol_p_adic_ring(3,[[0, 3, 1], [1, 3, 1], [2, 1, 1]]),
-    #                                 ])
-    # print(lasVegas.dubeyHolensteinLatticeRepresentative(test, True))
+    # # assert is_GlobalGenus(test), f"Test case of:\n{test}is not even a valid genus!"
+    # print(f"Symbols:\n{"\n".join([str(i.symbol_tuple_list()) for i in test.local_symbols()])}")
+    # print(f"Signature: {test.signature_pair()}")
+    # print("Sage algorithm start")
+    # assert(Genus(test.representative()) == test)
+    # print("Sage algorithm end")
+    # print("Dubey Holenstein start")
+    # print(f"Representative:\n{lasVegas.dubeyHolensteinLatticeRepresentative(test,check = False,superDumbCheck = False)}\n______")
+    
