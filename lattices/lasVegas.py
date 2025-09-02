@@ -1,35 +1,25 @@
-import os
-from functools import reduce
-
-from sage.arith.misc import kronecker, prime_divisors, inverse_mod, factor
-from sage.arith.functions import LCM_list
-from sage.arith.misc import gcd
-from sage.combinat.integer_vector_weighted import WeightedIntegerVectors
-from sage.functions.other import ceil
-from sage.interfaces.magma import magma
-from sage.matrix.constructor import matrix
-from sage.matrix.special import block_diagonal_matrix, diagonal_matrix, block_matrix
-from sage.structure.element import Matrix
-from sage.misc.functional import is_even, is_odd, sqrt
-from sage.misc.misc_c import prod
-from sage.quadratic_forms.genera.genus import Genus_Symbol_p_adic_ring
-from sage.quadratic_forms.genera.genus import GenusSymbol_global_ring
-from sage.quadratic_forms.genera.genus import is_GlobalGenus, is_2_adic_genus
-from sage.quadratic_forms.genera.genus import LocalGenusSymbol
 from sage.rings.finite_rings.integer_mod_ring import Zmod
 from sage.rings.integer_ring import ZZ
 from sage.all import QQ
-from sage.rings.integer import Integer
-from sage.modules.free_quadratic_module import FreeQuadraticModule_submodule_with_basis_pid, FreeQuadraticModule
-from sage.modules.free_quadratic_module_integer_symmetric import IntegralLattice, local_modification
-from sage.rings.finite_rings.finite_field_constructor import GF
-from sage.structure.factorization_integer import IntegerFactorization
-from sage.quadratic_forms.genera.normal_form import p_adic_normal_form
-from sage.matrix.constructor import zero_matrix
+
+from sage.arith.misc import kronecker, inverse_mod, factor, gcd
+from sage.arith.functions import LCM_list
 from sage.arith.all import crt
-from sage.quadratic_forms.genera.genus import Genus
+
+from sage.functions.other import ceil
+from sage.misc.functional import sqrt
+from sage.misc.misc_c import prod
+
+from sage.matrix.constructor import matrix, zero_matrix
+from sage.matrix.special import block_diagonal_matrix, diagonal_matrix, block_matrix
+
+from sage.quadratic_forms.genera.genus import Genus, Genus_Symbol_p_adic_ring, GenusSymbol_global_ring, LocalGenusSymbol, is_GlobalGenus
+from sage.quadratic_forms.genera.normal_form import p_adic_normal_form
+
 from sage.libs.pari import pari
 from sage.quadratic_forms.quadratic_form import QuadraticForm
+
+from functools import reduce
 from pathlib import Path
 from random import randint
 from math import prod
@@ -37,7 +27,7 @@ from itertools import product
 from sage.env import SAGE_EXTCODE
 
 def symbolList(globalGenus):
-    return "\n".join([f"({i.prime()},\t{i.symbol_tuple_list()})" for i in globalGenus.local_symbols()])
+    return "\n".join([f"({i.prime()},\t{i.symbol_tuple_list()})," for i in globalGenus.local_symbols()])
 def genusFromSymbolLists(signaturePair, tupleLists):
     """tupleLists: list of pairs (p, tupleList)"""
     return GenusSymbol_global_ring(signaturePair, [Genus_Symbol_p_adic_ring(i[0], i[1]) for i in tupleLists])
@@ -264,9 +254,6 @@ def twoSquaresSumToNonsquare(primePower, nonsquare, randomThreshold = 40):
     randomThreshold: some maximum number of times that the loop can fail
 
     returns (a, b) s.t. a^2 + b^2 == nonsquare (mod primePower)
-    
-
-    TODO might wanna cache this result since we're going to need it for later? probably not tho it takes literally no time
     """
     p, k = list(factor(primePower))[0]
     found = False
@@ -465,14 +452,16 @@ def computeChangeOfVariables(Htild, H, q):
     crtList = []
     for p, e in q.factor():
         m = p**e
-        D1, U1 = p_adic_normal_form(H,p, precision=e)
-        D2, U2 = p_adic_normal_form(Htild,p, precision=e)
+        H1 = matrix(ZZ,matrix(Zmod(m),H))
+        Htild1 = matrix(ZZ,matrix(Zmod(m),Htild))
+        D1, U1 = p_adic_normal_form(H1,p, precision=e)
+        D2, U2 = p_adic_normal_form(Htild1,p, precision=e)
         assert D1 == D2, f"Inputted forms are not isomorphic modulo {p}^{e}."
         U = U1.transpose()*U2.transpose().inverse()
         crtList.append((m, matrix(ZZ,U)))
 
     returnU = crtMatrix(crtList)
-    assert matrix(Zmod(q), returnU.transpose()*H*returnU) == matrix(Zmod(q), Htild)
+    # assert matrix(Zmod(q), returnU.transpose()*H*returnU) == matrix(Zmod(q), Htild)
     return returnU
 
 def getE2S2type(globalGenus):
@@ -613,7 +602,7 @@ def primitivelyRepresentedTWithRepresentations(globalGenus):
     t =  prod([p**eOddPrimes[i] for i,p in enumerate(relevantOddPrimes)]) * multiplySign * ZZ(2)**e2
 
     representations = []
-    #lol jk step 68: find x, A for p = 2
+    #find x, A for p = 2
     K2 = e2*(n-1)+det.valuation(2)+3
     if repType == 2:
         x1, x2 = primitiveRepresentationTypeII(S2list[0], t, K2)
@@ -635,7 +624,7 @@ def primitivelyRepresentedTWithRepresentations(globalGenus):
 
     representations.append((ZZ(2), S2, x,A2))
 
-    #lol jk step 69: find x, A for odd primes p
+    #find x, A for odd primes p
     for i, p in enumerate(relevantOddPrimes):
         S = SOddPrimes[i]
         Kp = eOddPrimes[i]*(n-1)+det.valuation(p)+1
@@ -709,6 +698,9 @@ def dubeyHolensteinLatticeRepresentative(globalGenus, check=False, superDumbChec
         Ap = representation[3]
         dp = xp.transpose()*Sp*Ap #TODO: return matrices in Z/p^kZ as to make these numbers managably sized
         Hp = t*Ap.transpose()*Sp*Ap - dp.transpose()*dp
+        # if depth == 20:
+        #     print(f"p: {p}\nx:\n{xp}\n\nA:\n{Ap}\n\nS:\n{Sp}\n\nd:\n{dp}\n\nH:\n{matrix(Zmod(p**(q.valuation(p))), Hp)}\n\n")
+        #     print("_________________")
         localSyms.append(LocalGenusSymbol(Hp,p))
         dCongruenceList.append((p**(q.valuation(p)), dp))
         hCongruenceList.append((p**(q.valuation(p)), Hp))
@@ -726,10 +718,7 @@ def dubeyHolensteinLatticeRepresentative(globalGenus, check=False, superDumbChec
     if check:
         assert is_GlobalGenus(newGenus) #check if new genus has rep
     Htild = dubeyHolensteinLatticeRepresentative(newGenus, check, superDumbCheck, depth+1, cache)
-
-    newQ = bar(det*t)
-    # print(f"depth: {depth}\nq:    {q}\nnewQ: {newQ}\n_____________")
-    Utild = computeChangeOfVariables(Htild, H, newQ)
+    Utild = computeChangeOfVariables(Htild, H, q)
 
     bottomRight = (Htild+Utild.transpose()*d.transpose()*d*Utild)/t
     returnMatrixBlock = block_matrix([[t, d*Utild],

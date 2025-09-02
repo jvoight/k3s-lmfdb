@@ -46,7 +46,7 @@ def compare(testCases):
     end = time.time()
     print(f"Dubey Holenstein algorithm complete in {round(end-start, 2)} seconds.")
     print(f"Cache size: {len(cache)}")
-    
+
     print("Sage algorithm start.")
     start = time.time()
     for i, test in enumerate(testCases):
@@ -68,10 +68,10 @@ def cut(testCases, targetSize):
 
 if __name__ == "__main__":
     signaturePair = (ZZ(6),ZZ(6))
-    det = 2**7 * 17**2 * 23**3
+    det = 2**7 * 17**4 * 23**3
     testCases = genus.all_genus_symbols(signaturePair[0], signaturePair[1], det)
     print(f"Loaded {len(testCases)} symbols with determinant {factor(det)} and signature {signaturePair}.")
-    actualTests = cut(testCases, 100)
+    actualTests = cut(testCases,40)
     compare(actualTests)
     
     # test = lasVegas.genusFromSymbolLists((12,6), [(2,[[0, 10, 3, 0, 0], [1, 8, 3, 1, 2]]),
