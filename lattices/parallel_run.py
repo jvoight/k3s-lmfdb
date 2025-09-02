@@ -4,7 +4,7 @@ from multiprocessing import Pool
 from functools import reduce
 
 min_rank = 1
-max_rank = 10
+max_rank = 24
 num_cpus = 256
 ranks = range(min_rank,max_rank+1)
 sigs = [[(r - n_minus, n_minus) for n_minus in range(r//2+1)] for r in ranks]

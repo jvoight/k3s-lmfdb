@@ -690,7 +690,8 @@ def value_to_postgres(val):
     if type(val) == tuple:
         return value_to_postgres(list(val))
     if type(val) == str:
-        return '"' + val + '"'
+        # return '"' + val + '"'
+        return val
     if type(val) == dict:
         d = {}
         for k in val.keys():
