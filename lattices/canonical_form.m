@@ -75,7 +75,6 @@ end function;
 function V_cvp(A : max_num := Infinity())
     A := ChangeRing(A, Rationals());
     L := LatticeWithGram(A);
-    rsub := 0;
     minA := &cat[[v,-v] : v in ShortestVectors(L : Max := max_num div 2)];
     if (#minA ge max_num) then
        return minA;
