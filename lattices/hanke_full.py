@@ -1,4 +1,3 @@
-# Put this in a Sage session (expects `from sage.all import *`).
 from sage.all import *
 import random
 from collections import defaultdict
@@ -33,20 +32,20 @@ def mp_comp(L):
         m_p[local.prime()] = local._symbol[-1][0]
     return m_p
 
+
 def zsat(L, max_iters=200, verbose=True):
     n = L.rank()
     pv = mp_comp(L)
-    if verbose:
-        print("initial p-vals (m_p):", pv)
 
     for it in range(1, max_iters+1):
-        if verbose:
-            print("iter", it)
-            print(" Gram (QQ) =\n", L.gram_matrix())
-            print(" m_p (old) =", pv)
+        # if verbose:
+        #     print("iter", it)
+        #     print(" Gram (QQ) =\n", L.gram_matrix())
+        #     print(" m_p (old) =", pv)
         bad = {p: e for p, e in pv.items() if e >= 2}
         if not bad:
-            print("FINAL", L)
+            # if verbose:
+            #     print("FINAL", L)
             return L
         cst = ZZ(1)
         for p, e in pv.items():
@@ -55,17 +54,23 @@ def zsat(L, max_iters=200, verbose=True):
         pv = mp_comp(L)
     return L
 
+# ------------------------
+# Bilinear forms helpers
+# ------------------------
+
 def B(v, M, w=None):
     rng = M.base_ring()
     try:
         v = vector(rng, [rng(a) for a in v])
     except:
-        print(v)
+        # print(v)
+        pass
     if w != None:
         try:
             w = vector(rng, [rng(a) for a in w])
         except:
-            print(w)
+            # print(w)
+            pass
     if w is None:
         return (v * M * v.column())[0]
     else:
@@ -82,9 +87,12 @@ def B_field(v, M, w=None):
     wF = _to_field_vector(w, F)
     return (vF * M * wF.column())[0]
 
+# ------------------------
+# Radical + complement over finite fields
+# ------------------------
+
 def radical_and_complement_rows_fp(M):
     """
-    FIXED: ensure we pass lists of scalars to Matrix(...) instead of vector objects.
     Returns (R_rows, Comp_rows) where rows are ambient row-vectors (as Matrix over M.base_ring()).
     """
     F = M.base_ring()
@@ -97,7 +105,6 @@ def radical_and_complement_rows_fp(M):
     R_rows = Matrix(F, [ list(col) for col in K_basis_cols ])  # may be 0 x n
 
     # Build a complement by taking standard basis columns and selecting those that extend span of radical
-    # store columns as lists of scalars (so matrix constructor sees scalars only)
     base_cols = [ list(col) for col in K_basis_cols ]   # each entry is a length-n list
     comp_cols = []  # will store lists of scalars (each length n)
 
@@ -219,7 +226,8 @@ def max_isotrop_fp(M, verbose=False):
         Gram_sub = restrict_gram(M, B_rows)
         planes.append((v_amb, u_amb))
         if verbose:
-            print("Split off plane. Remaining dim (complement) =", B_rows.nrows())
+            # print("Split off plane. Remaining dim (complement) =", B_rows.nrows())
+            pass
 
     isotropic_list = radical_ambient + [ pair[0] for pair in planes ]
     return isotropic_list
@@ -269,6 +277,10 @@ def char2_max_isotrop(M):
     ambient_rows = [ vector(F, list(r)) for r in R_rows.rows() ] + works
     return ambient_rows
 
+# ------------------------
+# Even sublattice + p-neighbor support
+# ------------------------
+
 def is_even(G):
     return all((Integer(G[i,i]) % 2) == 0 for i in range(G.nrows()))
 
@@ -295,23 +307,22 @@ def L_perp_mod2_basis(G, w):
         curr[bad[0]] = 2
 
     return vecs
+
 def p_neighbor_lattice(L_in, w):
     G = L_in.gram_matrix()
     gens_q = [w] + L_perp_mod2_basis(G, w)
     Mamb = FreeModule(ZZ,L_in.rank())
     Lpr = Mamb.submodule([vector(v) for v in gens_q])
     B = Lpr.basis_matrix()
-    print(B)
+    # print(B)
     Gprime_int = (B.transpose() * G * B)/4
-    print(Gprime_int)
+    # print(Gprime_int)
     return IntegralLattice(Gprime_int)
-
 
 def even_sublattice(L):
     G = L.gram_matrix()
     n = G.nrows()
     d = vector(ZZ, G.diagonal()) % 2
-    print(d)
     if d.is_zero():
         return [L,[[1 if i==j else 0 for j in range(0, n)] for i in range(n)]]
     pivot = []
@@ -325,19 +336,18 @@ def even_sublattice(L):
             basis.append(v)
     v = [0]*n
     v[pivot[0]] = 2
-    basis.append(v)
+    basis.append(v.copy())
     for i in range(1,len(pivot)):
         v[pivot[i]] = 1
         v[pivot[0]] = 3 - v[pivot[0]]
-        basis.append(v)
-        w = Matrix(n,1, v)
-        print(w.transpose() * G * w)
-    
+        basis.append(v.copy())
     B = Matrix(ZZ, basis)
-    print(B)
+    # print(B)
     return [IntegralLattice(B * L.gram_matrix() * B.transpose()), B]
 
-# SageMath code: integer Z-basis for solutions of B v == 0 (mod 2)
+# ------------------------
+# Integer kernel basis for B v == 0 (mod 2), and finishing logic
+# ------------------------
 
 def integer_basis(B):
     B = Matrix(ZZ, B)   
@@ -379,78 +389,129 @@ def fnd(G, B):
             return res
     
     return -1
+
 def finish(L):
     ret = even_sublattice(L)
     evenL = ret[0]
-    print("--EVEN LATTICE--")
-    print(evenL)
+    # print("--EVEN LATTICE--")
+    # print(evenL)
     if L==evenL:
         return L
     v = fnd(L.gram_matrix(), ret[1])
-    print("--VECTOR FOUND--")
-    print(v)
+    # print("--VECTOR FOUND--")
+    # print(v)
     if v == -1:
-        print("hi")
+        # print("hi")
         return evenL
     else:
         return p_neighbor_lattice(L,v)
 
-A = Matrix(QQ, [[22,1,3],[1,4,7],[3,7,12]])   # symmetric rational matrix
-V = VectorSpace(QQ,3)
-L = IntegralLattice(A)
-L_sat = zsat(L, max_iters=500, verbose=True)
-B_basis = L_sat.basis()
-print("\n=== FINISHED SATURATION ===")
+# ------------------------
+# Helpers for reducing rationals mod p and building p*M^{-1} over F_p
+# ------------------------
 
-print("IntegralLattice Gram:", L_sat.gram_matrix())
-print("B (row-basis used):\n", B_basis)
+def _Q_to_Fp_entry(r, p):
+    r = QQ(r)
+    if r == 0:
+        return GF(p)(0)
+    a = ZZ(r.numerator())
+    b = ZZ(r.denominator())
+    va = a.valuation(p) if a != 0 else +Infinity
+    vb = b.valuation(p) if b != 0 else 0
+    # cancel common p-powers
+    t = min(va if va != +Infinity else va, vb)
+    if t != +Infinity and t > 0:
+        a //= (p**t)
+        b //= (p**t)
+        va -= t
+        vb -= t
+    # if denominator still has p, valuation(r) > 0, so 0 mod p
+    if b.valuation(p) > 0:
+        return GF(p)(0)
+    return GF(p)(a % p) * GF(p)(Integer(b % p)).inverse()
 
-# Now test maximal isotropic over finite fields using the field-aware routines
-M = L_sat.gram_matrix()
-ps = Integer(M.determinant()).prime_factors()
-if 2 not in ps:
-    ps.append(2)
-
-zs = [0]*len(ps)
-
-isotrop = []
-for k,p in enumerate(ps):
-    print("\n--- working over GF(%s) ---" % p)
-    Mp = matrix(GF(p), M)
-    if p == 2:
-        iso2 = char2_max_isotrop(Mp)
-        print("char2_max_isotrop_fp returned %d vectors:" % len(iso2))
-        for i, v in enumerate(iso2):
-            print(" v[%d] =" % i, v)
-            lft = vector(ZZ, [int(a) for a in v])
-            for j,elem in enumerate(lft):
-                zs[k] = Integer(elem)
-                lft[j] = find_min_x(ps, zs)
-                zs[k] = 0
-            isotrop.append(lft)
-    else:
-        isp = max_isotrop_fp(Mp, verbose=True)
-        print("max_isotrop_fp returned %d vectors:" % len(isp))
-        for i, v in enumerate(isp):
-            print(" v[%d] =" % i, v)
-            lft = vector(ZZ, [int(a) for a in v])
-            for j,elem in enumerate(lft):
-                zs[k] = Integer(elem)
-                lft[j] = find_min_x(ps, zs)
-                zs[k] = 0
-            isotrop.append(lft)
-L_sat = L_sat.overlattice(isotrop)
-M= L_sat.gram_matrix()
-
-print("\n=== AFTER ISOTROPIC ===")
+def _matrix_Q_to_Fp(MQ, p):
+    return matrix(GF(p), [[_Q_to_Fp_entry(MQ[i,j], p) for j in range(MQ.ncols())] for i in range(MQ.nrows())])
 
 
-print(L_sat)
-L_sat = finish(L_sat)
-print(L_sat)
-L_sat_max = L_sat.maximal_overlattice() 
-print(L_sat_max)
-if L_sat != L_sat_max:
-    print('incorrect')
+def is_overlattice(L1, L2):
+    B1 = matrix(QQ, L1.basis())     
+    B2 = matrix(QQ, L2.basis())
 
-print("\nDone.")
+    coords = B2 * B1.inverse() 
+
+    return all(c in ZZ for c in coords.list())
+
+def maximal_overlattice_2(L_in, do_asserts=True):
+    print("USING MY MAXIMAL OVERLATTICE")
+    ogL = L_in
+    L = L_in
+
+    # Step 1: Z-saturate
+    L_sat = zsat(L, max_iters=500, verbose=False)
+
+    # Step 2: Work prime-by-prime on the dual to adjoin isotropic classes from D(L)
+    M = L_sat.gram_matrix()
+    Minv = M.inverse()   # over QQ
+    detM = Integer(M.determinant())
+    if detM == 0:
+        # Degenerate case; nothing intelligent to do, just finish and return
+        L_sat = finish(L_sat)
+        if do_asserts:
+            assert is_overlattice(L_sat, ogL)
+        return L_sat
+
+    ps = detM.prime_factors()
+    if 2 not in ps:
+        ps.append(2)
+
+    to_adjoin = []
+
+    for p in ps:
+        # quadratic form on the p-primary discriminant: use Gram p*M^{-1} mod p
+        Mp_dual = _matrix_Q_to_Fp(p*Minv, p)
+
+        if p == 2:
+            iso_basis = char2_max_isotrop(Mp_dual)
+            # char2_max_isotrop may return a list of vectors (ambient rows)
+            if hasattr(iso_basis, 'basis'):
+                iso_list = iso_basis.basis()
+            else:
+                iso_list = iso_basis
+            Fp = GF(p)
+            for v in iso_list:
+                vZ = vector(ZZ, [int(Fp(x)) for x in v])   # 0/1 reps
+                v_dual = vector(QQ, vZ) * Minv            # in L*
+                q = (v_dual * M * v_dual.column())[0]
+                if q in ZZ:
+                    to_adjoin.append(v_dual)
+        else:
+            iso_basis = max_isotrop_fp(Mp_dual, verbose=False)  # list of row vectors over F_p
+            Fp = GF(p)
+            for v in iso_basis:
+                vZ = vector(ZZ, [int(Fp(x)) for x in v])  # 0..p-1 reps
+                v_dual = vector(QQ, vZ) * Minv            # in L*
+                q = (v_dual * M * v_dual.column())[0]
+                if q in ZZ:
+                    to_adjoin.append(v_dual)
+
+    if to_adjoin:
+        # Adjoin to form an overlattice of L_sat
+        L_sat = L_sat.overlattice(list(L_sat.basis()) + to_adjoin)
+        M = L_sat.gram_matrix()
+
+    # Step 3: Even-izing / neighbor + maximal overlattice
+    L_sat = finish(L_sat)
+
+    if do_asserts:
+        # Check that L_sat is actually maximal in Sage's sense
+        L_sat_max = L_sat.maximal_overlattice()
+        assert L_sat == L_sat_max
+        # Check that we really have an overlattice of the original lattice
+        assert is_overlattice(L_sat, ogL)
+
+    return L_sat
+
+L = IntegralLattice(Matrix(QQ, [[-4,0,0,0], [0,-4,0,0], [0,0,4,0], [0,0,0,-24]]))
+L_max = maximal_overlattice_2(L)
+print(L_max)
