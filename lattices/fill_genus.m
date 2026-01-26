@@ -202,6 +202,7 @@ procedure fill_genus(label)
     end for;
 
     output := Join([basics[k] : k in basic_format] cat [Sprintf("%o", advanced[k]) : k in advanced_format], "|");
+    SetColumns(0);
     Write("genera_advanced/" * label, output : Overwrite);
 
 end procedure;
