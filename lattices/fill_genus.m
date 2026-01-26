@@ -32,7 +32,7 @@ function to_postgres(val)
 end function;
 
 procedure fill_genus(label)
-    data := Split(Read("genera_basic/" * label), "|");
+    data := Split(Split(Read("genera_basic/" * label), "\n")[1], "|");
     basic_format := Split(Read("genera_basic.format"), "|");
     advanced_format := Split(Read("genera_advanced.format"), "|");
     lat_format := Split(Read("lat.format"), "|");
