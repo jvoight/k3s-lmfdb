@@ -80,7 +80,7 @@ function V_cvp(A : max_num := Infinity())
     end if;
     LminA := sub<L | minA>;
     if (LminA eq L) then
-	return minA;
+	    return minA;
     end if;
     L1 := satspan(Basis(LminA), A);
     assert LminA subset L1;
@@ -93,17 +93,15 @@ function V_cvp(A : max_num := Infinity())
     A2 := B2 * A * Transpose(B2);
     r := Rank(L1);
     if (r eq Rank(L)) then
-	 V_cvp_A2 := [];
+	    V_cvp_A2 := [];
     else
-	 V_cvp_A2 := V_cvp(A2 : max_num := max_num);
+	    V_cvp_A2 := V_cvp(A2 : max_num := max_num);
     end if;
     A1_part := [Vector(Rationals(), v)*B1 : v in V_wr_cvp(A1)];
     proj_Z := ChangeRing(Denominator(proj)*proj, Integers());
     B2_Z := ChangeRing(Denominator(proj)*B2, Integers());
     A2_part := [Solution(Transpose(proj_Z), Vector(v)*B2_Z) : v in V_cvp_A2];
-    union_A2_part := &cat[[v - w
-			   : w in ClosestVectors(L1,v - v*proj)]
-			  : v in A2_part];
+    union_A2_part := &cat[[v - w : w in ClosestVectors(L1,v - v*proj)] : v in A2_part];
     VA := A1_part cat union_A2_part;
     VA := [v : v in VA | v ne 0];
     Lsub :=  sub<L | VA>;
@@ -146,16 +144,16 @@ function V_best_with_dual(A)
     found := false;
     vprintf CanonicalForm, 1: "Finding best characteristic vector set...";
     while not found do
-	vprintf CanonicalForm, 2: "\n\t allowing for up to %o vectors", max;
-	for j->B in mats do
-	    vprintf CanonicalForm, 3: "\n\t\t trying the %olattice...", is_dual[j] select "dual " else "";
-	    for jj->Vchar in [V_ms, V_cvp] do
-		vprintf CanonicalForm, 4: "\n\t\t\t trying the %o characteristic vector set...", jj eq 1 select "V_ms" else "V_cvp";
-		VA := [Vector(v) : v in Vchar(B : max_num := max)];
+        vprintf CanonicalForm, 2: "\n\t allowing for up to %o vectors", max;
+        for j->B in mats do
+            vprintf CanonicalForm, 3: "\n\t\t trying the %olattice...", is_dual[j] select "dual " else "";
+            for jj->Vchar in [V_ms, V_cvp] do
+                vprintf CanonicalForm, 4: "\n\t\t\t trying the %o characteristic vector set...", jj eq 1 select "V_ms" else "V_cvp";
+		        VA := [Vector(v) : v in Vchar(B : max_num := max)];
                 Append(~VAs, <VA,B,is_dual[j], Td>);
                 if (#VA lt max) then
-		   found := true;
-                   max := #VA;
+		            found := true;
+                    max := #VA;
                 end if;
                 vprintf CanonicalForm, 4 : "Done!"; 
             end for;

@@ -179,6 +179,7 @@ procedure fill_genus(label)
         lats := Sort(lats, cmp_lat);
     end if;
 
+    SetColumns(0);
     for idx->L in lats do
         // Need label for lattice.
         lat := L;
@@ -188,7 +189,6 @@ procedure fill_genus(label)
     end for;
 
     output := Join([basics[k] : k in basic_format] cat [Sprintf("%o", advanced[k]) : k in advanced_format], "|");
-    SetColumns(0);
     Write("genera_advanced/" * label, output : Overwrite);
 
 end procedure;
