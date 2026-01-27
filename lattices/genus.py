@@ -239,7 +239,7 @@ def create_genus_label(genus_sym):
     r is the rank of the lattices
     s is the signature (n_plus - n_minus)
     d is the absolute value of the determinant
-    If p_1, ... , p_k are the primes whose squares divide 2*d (p_i^2 | 2*d), then
+    If p_1, ... , p_k are the primes whose squares divide d (p_i^2 | d), then
     j_1,...,j_k are corresponding rank decompositions of their Jordan forms, omitting the first, encoded in base 62
     (digits 0-9, then lowercase a-z then uppercase A-Z)
     For example, if the pairs of (valuation, rank) appearing in the decomposition are (3, 1), (4,10), (6,37), 
