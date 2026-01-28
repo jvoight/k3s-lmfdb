@@ -112,8 +112,7 @@ procedure fill_genus(label)
         end for;
         lat["genus_label"] := basics["label"];
         lat["class_number"] := advanced["class_number"];
-        L_rat := LatticeWithGram(ChangeRing(GramMatrix(L), Integers()) : CheckPositive := false);
-        D := Dual(L_rat);
+        D := Dual(L);
         lat["dual_det"] := Determinant(D);
         // At the moment we do not know the label for the dual
         lat["dual_label"] := "\\N";
@@ -151,7 +150,9 @@ procedure fill_genus(label)
             lat["dual_theta_series"] := AbsEltseq(ThetaSeries(D, prec - 1));
         else
             lat["gram"] := Eltseq(gram);
-            // !!!  TODO - Need to be able to compute the automorphism group for non-definite lattices
+            // At the moment we do not have a notion of a canonical gram in the indefinite case
+            lat["canonical_gram"] := "\\N";
+            // !!!  TODO - Need to be able to compute some things for indefinite lattices
             lat["aut_size"] := "\\N";
             lat["festi_veniani_index"] := "\\N";
             lat["aut_label"] := "\\N";
@@ -228,7 +229,7 @@ procedure fill_genus(label)
         else
             lat["pneighbors"] := "\\N";
         end if;
-        assert #Keys(lat) eq #lat_format;
+        error if #Keys(lat) ne #lat_format, "%o", [k : k in lat_format | k notin Keys(lat)];
         output := Join([Sprintf("%o", to_postgres(lat[k])) : k in lat_format], "|");
         Write("lattice_data/" * lat["label"], output : Overwrite);
     end for;
@@ -238,4 +239,10 @@ procedure fill_genus(label)
 
 end procedure;
 
-fill_genus(label);
+try
+    fill_genus(label);
+catch e
+    E := Open("/dev/stderr", "a");
+    Write(E, Sprint(e) cat "\n");
+    Flush(E);
+end try;
