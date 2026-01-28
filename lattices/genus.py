@@ -683,10 +683,47 @@ COL_TYPE_LATTICE_GENUS = {'det': 'bigint',
  'adjacency_polynomials': 'jsonb',
  'theta_prec' : 'smallint'}
 
-def write_header_to_file(fname, sep = "|", col_type=COL_TYPE_LATTICE_GENUS):
+COL_TYPE_LATTICE = {'det': 'bigint',
+ 'disc': 'bigint',
+ 'dual_det': 'bigint',
+ 'dual_kissing': 'bigint',
+ 'id': 'bigint',
+ 'kissing': 'bigint',
+ 'level': 'bigint',
+ 'festi_veniani_index': 'integer',
+ 'minimum': 'integer',
+ 'class_number': 'smallint',
+ 'rank': 'smallint',
+ 'signature': 'smallint',
+ 'is_even': 'boolean',
+ 'canonical_gram': 'integer[]',
+ 'discriminant_group_invs': 'integer[]',
+ 'gram': 'integer[]',
+ 'pneighbors': 'jsonb',
+ 'aut_size': 'numeric',
+ 'density': 'numeric',
+ 'dual_density': 'numeric',
+ 'dual_hermite': 'numeric',
+ 'hermite': 'numeric',
+ 'dual_theta_series': 'numeric[]',
+ 'theta_series': 'numeric[]',
+ 'aut_label': 'text',
+ 'conway_symbol': 'text',
+ 'dual_conway': 'text',
+ 'dual_label': 'text',
+ 'genus_label': 'text',
+ 'label': 'text',
+ 'aut_group' : 'text',
+ 'theta_prec' : 'smallint'}
+
+FIELDS_LATTICE_GENUS = ["genera_basic.format", "genera_advanced.format"]
+FIELDS_LATTICE = ["lat.format"]
+
+def write_header_to_file(fname, sep = "|", col_type=COL_TYPE_LATTICE_GENUS, fields=FIELDS_LATTICE_GENUS):
     # we want to have a well defined order, matching the entries
-    fields = open("genera_basic.format").read().split("|")
-    fields += open("genera_advanced.format").read().split("|")
+    #fields = open("genera_basic.format").read().split("|")
+    #fields += open("genera_advanced.format").read().split("|")
+    fields = reduce(lambda x,y: x+y, [open(f).read().split("|") for f in fields])
 
     header_lines = [sep.join(fields), sep.join([col_type[k] for k in fields]), "\n"]
     
