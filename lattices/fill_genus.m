@@ -41,6 +41,7 @@ procedure fill_genus(label)
     basics := AssociativeArray();
     for i in [1..#data] do
         basics[basic_format[i]] := data[i];
+        if data[i] eq "None" then basics[basic_format[i]] := "\\N"; end if;
     end for;
     advanced := AssociativeArray();
     lats := [];
