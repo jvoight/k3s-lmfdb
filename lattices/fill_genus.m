@@ -34,6 +34,23 @@ function to_postgres(val : jsonb_val := false)
     end if;
 end function;
 
+function RescaledDualNF(L)
+    Q := Rationals();
+    K := BaseRing(L);
+    B := ChangeRing(BasisMatrix(L),Q);
+    M := ChangeRing(InnerProductMatrix(L),Q);
+    F := ChangeRing(GramMatrix(L),Q);
+    B := F^-1 * B;
+    B := IntegralMatrix(B);
+    B div:= GCD(Eltseq(B));
+    F := B * M * Transpose(B);
+    F, d := IntegralMatrix(F);
+    g := GCD(Eltseq(F));
+    F div:= g;
+    M := (d/g) * M;
+    return NumberFieldLattice(Rows(ChangeRing(B, K)) : InnerProduct := ChangeRing(M,K));
+end function;
+
 procedure fill_genus(label)
     data := Split(Split(Read("genera_basic/" * label), "\n")[1], "|");
     basic_format := Split(Read("genera_basic.format"), "|");
@@ -55,6 +72,7 @@ procedure fill_genus(label)
         assert n gt 2;
         K := RationalsAsNumberField();
         LWG := NumberFieldLatticeWithGram;
+        Dual := RescaledDualNF;
     else
         assert n eq s;
         K := Rationals();
@@ -94,7 +112,8 @@ procedure fill_genus(label)
         end for;
         lat["genus_label"] := basics["label"];
         lat["class_number"] := advanced["class_number"];
-        D := Dual(L);
+        L_rat := LatticeWithGram(ChangeRing(GramMatrix(L), Integers()) : CheckPositive := false);
+        D := Dual(L_rat);
         lat["dual_det"] := Determinant(D);
         // At the moment we do not know the label for the dual
         lat["dual_label"] := "\\N";
