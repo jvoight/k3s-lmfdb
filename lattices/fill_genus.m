@@ -20,7 +20,7 @@ end function;
 function to_postgres(val : jsonb_val := false)
     delims := jsonb_val select "[]" else "{}";
     if ISA(Type(val),Mtrx) then
-        return to_postgres(Eltseq(val));
+        return to_postgres(Eltseq(val) : jsonb_val);
     elif Type(val) in [SeqEnum, Tup] then
         return delims[1] * Join([Sprintf("%o",to_postgres(x : jsonb_val)) : x in val],",") * delims[2];
     elif Type(val) eq Assoc then
