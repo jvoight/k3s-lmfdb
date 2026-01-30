@@ -20,7 +20,11 @@ end function;
 function to_postgres(val : jsonb_val := false)
     delims := jsonb_val select "[]" else "{}";
     if ISA(Type(val),Mtrx) then
-        return to_postgres(Eltseq(val) : jsonb_val);
+        return to_postgres(Eltseq(val) : jsonb_val:=jsonb_val);
+    elif val cmpeq "\\N" then
+        return val;
+    elif Type(val) eq MonStgElt then
+        return "\"" * val * "\""; // This will fail if the string has quotes, but I don't think that's ever true for us.
     elif Type(val) in [SeqEnum, Tup] then
         return delims[1] * Join([Sprintf("%o",to_postgres(x : jsonb_val)) : x in val],",") * delims[2];
     elif Type(val) eq Assoc then
@@ -161,6 +165,8 @@ procedure fill_genus(label : genus_reps_func := GenusRepresentatives)
             lat["theta_series"] := Eltseq(ThetaSeries(L, prec - 1));
             lat["theta_prec"] := prec;
             lat["dual_theta_series"] := Eltseq(ThetaSeries(D, prec - 1));
+            minima, vecs := SuccessiveMinima(L); // for now we just throw vecs away
+            lat["successive_minima"] := minima;
         else
             lat["gram"] := Eltseq(gram);
             // At the moment we do not have a notion of a canonical gram in the indefinite case
@@ -180,6 +186,7 @@ procedure fill_genus(label : genus_reps_func := GenusRepresentatives)
             lat["theta_series"] := "\\N";
             lat["theta_prec"] := "\\N";
             lat["dual_theta_series"] := "\\N";
+            lat["successive_minima"] := "\\N";
         end if;
         lat["dual_label"] := "\\N"; // set in next stage
         lat["is_indecomposable"] := "\\N"; // set in next stage
@@ -199,8 +206,6 @@ procedure fill_genus(label : genus_reps_func := GenusRepresentatives)
         lat["successive_minima"] := "\\N"; // set in next stage
 
         lat["level"] := Level(LatticeWithGram(ChangeRing(GramMatrix(L), Integers()) : CheckPositive:=false));
-
-        // Compute festi_veniani_index in Sage?
 
         // TODO - do we also need these? or should we only keep them for the genus?
         lat["genus_label"] := basics["label"];
