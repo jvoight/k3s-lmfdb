@@ -1,5 +1,5 @@
 AttachSpec("lattices.spec");
-import "canonical_form.m" : test_V, test_canonical;
+import "canonical_form.m" : test_V, test_canonical, V_cvp;
 M:=-Matrix(Rationals(), 19, 19 ,[-2, 0, 0, 0, 0, -1, -1, 0, 1, -1, 1, 1, 1, \
 -1, 1, -1, 1, 1, -1, 0, -2, -1, -1, -1, 0, 0, 0, -1, 1, -1, -1, -1, 1, 1, 1, 1\
 , -1, 1, 0, -1, -2, -1, -1, 0, 0, 0, -1, 1, -1, -1, -1, 0, 1, 1, 1, 0, 1, 0, -\
@@ -18,3 +18,8 @@ M:=-Matrix(Rationals(), 19, 19 ,[-2, 0, 0, 0, 0, -1, -1, 0, 1, -1, 1, 1, 1, \
 1, -1, -4, 1, -1, 1, 1, 0, 0, -1, -1, 0, 2, -2, 1, 2, 2, 0, 0, -2, 0, 1, -4]);
 test_V(M);
 test_canonical(M);
+L:=LatticeWithGram(M);
+G:=AutomorphismGroup(L);
+s:=V_cvp(M);
+print #s;
+assert &and[i*ChangeRing(Matrix(G.1),Rationals()) in s : i in s];
