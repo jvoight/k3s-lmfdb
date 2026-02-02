@@ -14,3 +14,10 @@ time cans := [CanonicalForm(L12a[j]) : j in good_idxs];
 
 // We can actually also do L12a[14], which has 8256 vectors in the vector set,
 // but this takes 3058.530 seconds
+
+// This should take roughly double the time 
+print "testing...";
+for mat in [L12a[j] : j in good_idxs] do
+  test_canonical(mat);
+end for;
+
