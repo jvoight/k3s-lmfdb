@@ -16,8 +16,9 @@ def calculate(func, args):
         func.__name__, args, result
         )
 
-tasks = [[(write_all_of_sig_between_genera_basic, (sig[0], sig[1], 100*i+1, 100*(i+1))) for i in range(10)] for sig in all_sigs]
+tasks = [[(write_all_of_sig_between_genera_basic, (sig[0], sig[1], 10*i+1, 10*(i+1))) for i in range(100)] for sig in all_sigs]
 all_tasks = reduce(lambda x,y : x + y, tasks)
 my_pool = Pool(num_cpus)
 results = [my_pool.apply_async(calculate, t) for t in all_tasks]
+# sum([res.ready() for res in results]) / len(results)
 my_pool.close()
