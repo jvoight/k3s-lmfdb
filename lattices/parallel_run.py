@@ -20,5 +20,9 @@ tasks = [[(write_all_of_sig_between_genera_basic, (sig[0], sig[1], 10*i+1, 10*(i
 all_tasks = reduce(lambda x,y : x + y, tasks)
 my_pool = Pool(num_cpus)
 results = [my_pool.apply_async(calculate, t) for t in all_tasks]
-# sum([res.ready() for res in results]) / len(results)
+ndone = sum([res.ready() for res in results])
+while (ndone < len(results)):
+     sleep(5)
+     ndone = sum([res.ready() for res in results])
+     print("done/njobs = ", ndone, "/", len(results))
 my_pool.close()
