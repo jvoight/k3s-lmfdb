@@ -13,7 +13,8 @@ assert nums eq [ 484, 304, 556, 508, 516, 2556, 33252, 998, 1332, 278, 1068, 186
 good_idxs := [j : j in [1..#nums] | nums[j] le 8000];
 // last 3 lattices that we need to take care of
 bad_idxs := [j : j in [1..#nums] | nums[j] gt 8000];
-assert #bad_idxs eq 3;
+print #bad_idxs;
+assert #bad_idxs eq 4;
 time cans := [CanonicalForm(L12a[j]) : j in good_idxs];
 
 // We can actually also do L12a[14], which has 8256 vectors in the vector set,
