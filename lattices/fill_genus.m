@@ -101,10 +101,11 @@ intrinsic FillGenus(label::MonStgElt : genus_reps_func := GenusRepresentatives, 
         genus_success, reps, elapsed := TimeoutCall(timeout, genus_reps_func, <L0>, 1);
         vprintf FillGenus, 1 : "Genus representatives computed in %o seconds\n", elapsed;
     end if;
+    advanced["class_number"] := "\\N";
+    advanced["adjacency_matrix"] := "\\N";
+    advanced["adjacency_polynomials"] := "\\N";
     if genus_success then
         advanced["class_number"] := #reps;
-        advanced["adjacency_matrix"] := "\\N";
-        advanced["adjacency_polynomials"] := "\\N";
         vprintf FillGenus, 1 : "Computing adjacency matrix for p = ";
         hecke_mats := AssociativeArray();
         hecke_polys := AssociativeArray();
