@@ -152,7 +152,7 @@ intrinsic FillGenus(label::MonStgElt : genus_reps_func := GenusRepresentatives)
             lat["canonical_gram"] := lat["gram"];
             vtime FillGenus, 1 : A := AutomorphismGroup(L);
             lat["aut_size"] := #A;
-            lat["festi_veniani_index"] := disc_aut_size div #A;
+            lat["festi_veniani_index"] := #A div disc_aut_size;
             if CanIdentifyGroup(#A) then
                 Aid := IdentifyGroup(A);
                 lat["aut_label"] := Sprintf("%o.%o", Aid[1], Aid[2]);

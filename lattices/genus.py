@@ -612,7 +612,7 @@ def create_genus_entry(genus_symbol):
     ddet = dual.det()
     dual_local_symbols = [LocalGenusSymbol(dual, p) for p in (2*ddet).prime_divisors()]
     dual_symbol = GenusSymbol_global_ring(genus_symbol.signature_pair(), dual_local_symbols, representative=dual)
-    table_row['dual_conway'] = conway_symbol(dual_symbol)
+    table_row['dual_conway_symbol'] = conway_symbol(dual_symbol)
     # Every trace_bound currently in the LMFDB of Gamma0(N) or Gamma(N,chi) for chi a quadratic character has trace bound less than 150.
 
     # sage: list(db.mf_newspaces.search({"trace_bound":{"$gte":100}}, ["label", "trace_bound"]))
