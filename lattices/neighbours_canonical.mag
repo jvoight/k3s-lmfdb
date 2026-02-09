@@ -41,9 +41,9 @@ end function;
 // the p-neighbours of a lattice, and a canonical form
 // thorough included for backward compatibility
 
-// bd := Infinity(); p := 2; done := {@@}; silent := false; aut_gp_fn := aut_faster; nb_fn := newNeighbours; cf_fn := func<x|CanonicalForm(GramMatrix(x))>; hash := func<x|<IsEven(x) select "even" else "odd",a,b,c,d,ThetaSeries(x,(IsEven(x) select 20 else 10))> where a,b,c is root_sub(x) where d is [Rank(stoi(x,i)): i in [1..6]]>; find_canonical := false;
+// bd := Infinity(); p := 2; done := {@@}; silent := false; aut_gp_fn := aut_faster; nb_fn := newNeighbours; cf_fn := func<x|CanonicalForm(GramMatrix(x))>; hash := func<x|<IsEven(x) select "even" else "odd",a,b,c,d,#aut_gp_fn(x),ThetaSeries(x,(IsEven(x) select 20 else 10))> where a,b,c is root_sub(x) where d is [Rank(stoi(x,i)): i in [1..6]]>; find_canonical := false;
 stoi := func<l,i|sub<l|[x[1]: x in ShortVectors(l,i)]>>;
-easy_hash := func<x|<IsEven(x) select "even" else "odd",a,b,c,d,ThetaSeries(x,(IsEven(x) select 20 else 10))> where a,b,c is root_sub(x) where d is [Rank(stoi(x,i)): i in [1..6]]>;
+easy_hash := func<x|<IsEven(x) select "even" else "odd",a,b,c,d,#aut_faster(x),ThetaSeries(x,(IsEven(x) select 20 else 10))> where a,b,c is root_sub(x) where d is [Rank(stoi(x,i)): i in [1..6]]>;
 // further improvement: only compute canonical form when we need it,
 // unless find_canonical is set to true
 function list_genus(pd: bd := Infinity(), p := 2, done := {@@}, silent := false, aut_gp_fn := AutomorphismGroup, nb_fn := Neighbours, cf_fn := func<x|CanonicalForm(GramMatrix(x))>, hash := easy_hash, thorough := true, find_canonical := false)
