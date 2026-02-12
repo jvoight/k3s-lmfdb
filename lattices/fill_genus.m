@@ -75,7 +75,7 @@ intrinsic FillGenus(label::MonStgElt : genus_reps_func := GenusRepresentatives, 
     lats := [];
 
     n := StringToInteger(basics["rank"]);
-    s := StringToInteger(basics["signature"]);
+    s := StringToInteger(basics["nplus"]);
     as_num := (s * (n - s) ne 0);
     if as_num then
         // assert n gt 2;
@@ -134,9 +134,13 @@ intrinsic FillGenus(label::MonStgElt : genus_reps_func := GenusRepresentatives, 
         vprintf FillGenus, 1 : "Computing canonical forms and automorphism groups for representative ";
     end if;
 
+    if #reps gt 0 then
+        to_per_rep := timeout div #reps + 1;
+    end if;
+
     for Li->L in reps do
         lat := AssociativeArray();
-        for col in ["rank", "signature", "det", "disc", "discriminant_group_invs", "is_even"] do
+        for col in ["rank", "nplus", "det", "disc", "discriminant_group_invs", "is_even"] do
             lat[col] := basics[col];
         end for;
         lat["genus_label"] := basics["label"];
@@ -170,13 +174,13 @@ intrinsic FillGenus(label::MonStgElt : genus_reps_func := GenusRepresentatives, 
         if (n eq s) then 
             // TODO : This is lossy - change later
             vprintf FillGenus, 1 : "%o", gram;
-            success, canonical_gram, elapsed := TimeoutCall(timeout, CanonicalForm, <gram>, 1);
+            success, canonical_gram, elapsed := TimeoutCall(to_per_rep, CanonicalForm, <gram>, 1);
             vprintf FillGenus, 1 : "Canonical form computed in %o seconds\n", elapsed;
             if success then 
                 canonical_gram := canonical_gram[1];
                 lat["canonical_gram"] := Eltseq(canonical_gram);
             end if;
-            success, aut_group, elapsed := TimeoutCall(timeout, AutomorphismGroup, <L>, 1);
+            success, aut_group, elapsed := TimeoutCall(to_per_rep, AutomorphismGroup, <L>, 1);
             vprintf FillGenus, 1 : "Automorphism group computed in %o seconds\n", elapsed;
             if success then 
                 aut_group := aut_group[1];

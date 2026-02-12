@@ -586,7 +586,7 @@ def create_genus_entry(genus_symbol):
     table_row = {}
     table_row['label'] = create_genus_label(genus_symbol)
     table_row['rank'] = rank = genus_symbol.rank()
-    table_row['signature'] = genus_symbol.signature_pair()[0]
+    table_row['nplus'] = genus_symbol.signature_pair()[0]
     table_row['det'] = genus_symbol.determinant()
     table_row['disc'] = table_row['det']
     if (genus_symbol.is_even() and genus_symbol.rank() % 2 == 1):
@@ -670,7 +670,7 @@ COL_TYPE_LATTICE_GENUS = {'det': 'bigint',
  'id': 'bigint',
  'level': 'bigint',
  'rank': 'smallint',
- 'signature': 'smallint',
+ 'nplus': 'smallint',
  'is_even': 'boolean',
  'discriminant_form': 'integer[]',
  'discriminant_group_invs': 'integer[]',
@@ -695,7 +695,7 @@ COL_TYPE_LATTICE = {'det': 'bigint',
  'minimum': 'integer',
  'class_number': 'smallint',
  'rank': 'smallint',
- 'signature': 'smallint',
+ 'nplus': 'smallint',
  'is_even': 'boolean',
  'canonical_gram': 'integer[]',
  'discriminant_group_invs': 'integer[]',
