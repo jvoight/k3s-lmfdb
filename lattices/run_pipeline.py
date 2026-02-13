@@ -35,7 +35,7 @@ def run_pipeline(n_plus, n_minus, log_ub_det):
     fnames = []
     for t in range(1, log_ub_det+1):
         fnames += glob(f"lattice_data/{n}.{sig}." + t*"[0-9]" + ".*")
-    fnames += glob(f"lattice_data/{n}.{sig}." + log_ub_det*"0" + ".*")
+    fnames += glob(f"lattice_data/{n}.{sig}.1" + log_ub_det*"0" + ".*")
     merge_files(fnames, f"tables/lattices_{n}_{sig}_1_{ub_det}.tbl", schema="lat")
     return
 
