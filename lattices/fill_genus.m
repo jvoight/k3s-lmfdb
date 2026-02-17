@@ -56,11 +56,6 @@ end function;
 function genus_reps_Magma(L)
     // The bound is set to infinity to avoid Magma printing an error message
     // without throwing a runtime error.
-    n := Rank(L);
-    if n eq 2 then 
-        d := Determinant(L);
-        error if IsSquare(-d), "Magma bug when the determinant is a square.";
-    end if;
     return GenusRepresentatives(L : Bound := Infinity());
 end function;
 
@@ -96,8 +91,20 @@ intrinsic FillGenus(label::MonStgElt : timeout := 1800)
     L0 := LWG(gram0 : CheckPositive := false);
     vprintf FillGenus, 1 : "Computing genus representatives...";
     reps := [];
-    genus_success, reps, elapsed := TimeoutCall(timeout, genus_reps_Magma, <L0>, 1);
-    vprintf FillGenus, 1 : "Genus representatives computed in %o seconds\n", elapsed;
+    // Taking care of a special case Magma has trouble with
+    genus_success := true;
+    if n eq 2 then 
+        d := Determinant(L0);
+        if IsSquare(-d) then 
+            // At the moment, we don't do anything in this case.
+            // I think this is always class number 1, but check!
+            genus_success := false;
+        end if; 
+    end if;
+    if genus_success then
+        genus_success, reps, elapsed := TimeoutCall(timeout, genus_reps_Magma, <L0>, 1);
+        vprintf FillGenus, 1 : "Genus representatives computed in %o seconds\n", elapsed;
+    end if;
     advanced["class_number"] := "\\N";
     advanced["adjacency_matrix"] := "\\N";
     advanced["adjacency_polynomials"] := "\\N";
