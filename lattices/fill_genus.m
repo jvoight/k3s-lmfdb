@@ -139,9 +139,9 @@ intrinsic FillGenus(label::MonStgElt : genus_reps_func := GenusRepresentatives, 
         for col in ["rank", "nplus", "det", "disc", "discriminant_group_invs", "is_even"] do
             lat[col] := basics[col];
         end for;
-        lat["det_abs"] := Abs(lat["det"]);
-        lat["det_sign"] := Sign(lat["det"]);
-        lat["det_radical"] := &*PrimeDivisors(lat["det"]);
+        lat["det_abs"] := Abs(StringToInteger(lat["det"]));
+        lat["det_sign"] := Sign(StringToInteger(lat["det"]));
+        lat["det_radical"] := &*PrimeDivisors(StringToInteger(lat["det"]));
         lat["genus_label"] := basics["label"];
         lat["class_number"] := advanced["class_number"];
         D := DualLat(L);
