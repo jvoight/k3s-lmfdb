@@ -139,9 +139,11 @@ intrinsic FillGenus(label::MonStgElt : genus_reps_func := GenusRepresentatives, 
         for col in ["rank", "nplus", "det", "disc", "discriminant_group_invs", "is_even"] do
             lat[col] := basics[col];
         end for;
-        lat["det_abs"] := Abs(StringToInteger(lat["det"]));
-        lat["det_sign"] := Sign(StringToInteger(lat["det"]));
-        lat["det_radical"] := &*PrimeDivisors(StringToInteger(lat["det"]));
+        det := StringToInteger(lat["det"]);
+        Remove(~lat, "det");
+        lat["det_abs"] := Abs(det);
+        lat["det_sign"] := Sign(det);
+        lat["det_radical"] := &*PrimeDivisors(det);
         lat["genus_label"] := basics["label"];
         lat["class_number"] := advanced["class_number"];
         D := DualLat(L);
@@ -171,7 +173,7 @@ intrinsic FillGenus(label::MonStgElt : genus_reps_func := GenusRepresentatives, 
         gram := LLLGram(GramMatrix(L));
         lat["gram"] := Eltseq(gram);
         lat["gram_is_canonical"] := false;
-        lat["gram_other"] := []; // This will be manually set in cases like E8 where we want to store other options
+        lat["gram_others"] := []; // This will be manually set in cases like E8 where we want to store other options
         // At the moment we do not have a notion of a canonical gram in the indefinite case
         // !!!  TODO - Need to be able to compute some things for indefinite lattices
         if (n eq s) then 
@@ -297,7 +299,7 @@ intrinsic FillGenus(label::MonStgElt : genus_reps_func := GenusRepresentatives, 
         else
             lat["pneighbors"] := "\\N";
         end if;
-        Remove(~lat, "theta_prec");
+        // Remove(~lat, "theta_prec");
         error if Keys(lat) ne Set(lat_format), [k : k in lat_format | k notin Keys(lat)], [k : k in Keys(lat) | k notin lat_format];
         output := Join([Sprintf("%o", to_postgres(lat[k])) : k in lat_format], "|");
         Write("lattice_data/" * lat["label"], output : Overwrite);
