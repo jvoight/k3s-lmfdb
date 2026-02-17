@@ -233,6 +233,9 @@ intrinsic FillGenus(label::MonStgElt : timeout := 1800)
             vprintf FillGenus, 1 : "Theta series computed in %o seconds\n", elapsed;
             if success then 
                 lat["theta_series"] := Eltseq(theta_series[1]);
+            else
+                lat["theta_series"] := [1];
+                lat["theta_prec"] := 1;
             end if;
             success, dual_theta_series, elapsed := TimeoutCall(to_per_rep, ThetaSeries, <D, prec-1>, 1);
             vprintf FillGenus, 1 : "Dual theta series computed in %o seconds\n", elapsed;
@@ -278,11 +281,13 @@ intrinsic FillGenus(label::MonStgElt : timeout := 1800)
     function cmp_lat(L1, L2)
         d := L2["aut_size"] - L1["aut_size"];
         if (d ne 0) then return d; end if;
-        prec := Minimum(L1["theta_prec"], L2["theta_prec"]);
-        for i in [1..prec - 1] do
-            d := L1["theta_series"][i] - L2["theta_series"][i];
-            if (d ne 0) then return d; end if;
-        end for;
+        if Type(L1["theta_series"]) eq SeqEnum and Type(L2["theta_series"]) eq SeqEnum then
+            prec := Minimum(L1["theta_prec"], L2["theta_prec"]);
+            for i in [1..prec - 1] do
+                d := L1["theta_series"][i] - L2["theta_series"][i];
+                if (d ne 0) then return d; end if;
+            end for;
+        end if;
         for i in [1..n^2] do
             d := L1["gram"][i] - L2["gram"][i];
             if (d ne 0) then return d; end if;
