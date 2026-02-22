@@ -56,12 +56,14 @@ end function;
 function genus_reps_Magma(L)
     // The bound is set to infinity to avoid Magma printing an error message
     // without throwing a runtime error.
-    n := Rank(L);
-    if n eq 2 then 
-        d := Determinant(L);
-        error if IsSquare(-d), "Magma bug when the determinant is a square.";
+    if IsPositiveDefinite(GramMatrix(L)) then
+      return GenusRepresentatives(L : Bound := Infinity());
     end if;
-    return GenusRepresentatives(L : Bound := Infinity());
+    // due to some bugs in Magma, we convert to number field
+    LF := NumberFieldLattice(L);
+    reps := GenusRepresentatives(LF);
+    return [LatticeWithGram(ChangeRing(GramMatrix(r), Integers()) :
+			    CheckPositive := false) : r in reps];
 end function;
 
 function genus_reps_Logan(L)
@@ -96,13 +98,26 @@ intrinsic FillGenus(label::MonStgElt : timeout := 1800)
     L0 := LWG(gram0 : CheckPositive := false);
     vprintf FillGenus, 1 : "Computing genus representatives...";
     reps := [];
-    genus_success, reps, elapsed := TimeoutCall(timeout, genus_reps_Magma, <L0>, 1);
-    vprintf FillGenus, 1 : "Genus representatives computed in %o seconds\n", elapsed;
+    // Taking care of a special case Magma has trouble with
+    genus_success := true;
+    if n eq 2 then 
+        d := Determinant(L0);
+        if IsSquare(-d) then 
+            // At the moment, we don't do anything in this case.
+            // I think this is always class number 1, but check!
+            genus_success := false;
+        end if; 
+    end if;
+    if genus_success then
+        genus_success, reps, elapsed := TimeoutCall(timeout, genus_reps_Magma, <L0>, 1);
+        vprintf FillGenus, 1 : "Genus representatives computed in %o seconds\n", elapsed;
+    end if;
     advanced["class_number"] := "\\N";
     advanced["adjacency_matrix"] := "\\N";
     advanced["adjacency_polynomials"] := "\\N";
     if genus_success then
         reps := reps[1];
+        vprintf FillGenus, 1 : "Number of genus representatives: %o\n", #reps;
         advanced["class_number"] := #reps;
         vprintf FillGenus, 1 : "Computing adjacency matrix for p = ";
         hecke_mats := AssociativeArray();
@@ -220,10 +235,26 @@ intrinsic FillGenus(label::MonStgElt : timeout := 1800)
             m := Minimum(L);
             lat["minimum"] := m;
             prec := Max(150, m+4);
-            lat["theta_series"] := Eltseq(ThetaSeries(L, prec - 1));
             lat["theta_prec"] := prec;
-            lat["dual_theta_series"] := Eltseq(ThetaSeries(D, prec - 1));
-            minima, vecs := SuccessiveMinima(L); // for now we just throw vecs away
+            success, theta_series, elapsed := TimeoutCall(to_per_rep, ThetaSeries, <L, prec-1>, 1);
+            vprintf FillGenus, 1 : "Theta series computed in %o seconds\n", elapsed;
+            if success then 
+                lat["theta_series"] := Eltseq(theta_series[1]);
+            else
+                lat["theta_series"] := [1];
+                lat["theta_prec"] := 1;
+            end if;
+            success, dual_theta_series, elapsed := TimeoutCall(to_per_rep, ThetaSeries, <D, prec-1>, 1);
+            vprintf FillGenus, 1 : "Dual theta series computed in %o seconds\n", elapsed;
+            if success then 
+                lat["dual_theta_series"] := Eltseq(dual_theta_series[1]);
+            end if;
+            //success, minima, elapsed := TimeoutCall(to_per_rep, SuccessiveMinima, <L>, 2);
+            //vprintf FillGenus, 1 : "Successive minima computed in %o seconds\n", elapsed;
+            //if success then 
+            //lat["successive_minima"] := minima[1]; // For now, we throw away the vecs
+            //end if;
+            minima, vecs := SuccessiveMinima(L);
             lat["successive_minima"] := minima;
         end if;
         lat["dual_label"] := "\\N"; // set in next stage
@@ -257,11 +288,13 @@ intrinsic FillGenus(label::MonStgElt : timeout := 1800)
     function cmp_lat(L1, L2)
         d := L2["aut_size"] - L1["aut_size"];
         if (d ne 0) then return d; end if;
-        prec := Minimum(L1["theta_prec"], L2["theta_prec"]);
-        for i in [1..prec - 1] do
-            d := L1["theta_series"][i] - L2["theta_series"][i];
-            if (d ne 0) then return d; end if;
-        end for;
+        if Type(L1["theta_series"]) eq SeqEnum and Type(L2["theta_series"]) eq SeqEnum then
+            prec := Minimum(L1["theta_prec"], L2["theta_prec"]);
+            for i in [1..prec - 1] do
+                d := L1["theta_series"][i] - L2["theta_series"][i];
+                if (d ne 0) then return d; end if;
+            end for;
+        end if;
         for i in [1..n^2] do
             d := L1["gram"][i] - L2["gram"][i];
             if (d ne 0) then return d; end if;
