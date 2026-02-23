@@ -9,7 +9,7 @@ function IsWellRounded(A)
     return Rank(LminA) eq Rank(L);
 end function;
 
-function V_wr_cvp(A)
+function V_wr_cvp(A : bound := Infinity())
     assert IsWellRounded(A);
     L := LatticeWithGram(A);
     minA := &cat[[v,-v] : v in ShortestVectors(L)];
@@ -21,7 +21,11 @@ function V_wr_cvp(A)
     B := ChangeRing(Matrix(Basis(LminA)),Rationals());
     L_B := LatticeWithGram(B * A * Transpose(B));
     ret := [Vector(ChangeRing(v, Rationals())) : v in minA];
-    ret cat:= &cat[[c - Vector(ChangeRing(v, Rationals())*B) : v in ClosestVectors(L_B, c*B^(-1))] : c in cs | not IsZero(c)];
+    if Type(bound) eq RngIntElt then
+        ret cat:= &cat[[c - Vector(ChangeRing(v, Rationals())*B) : v in ClosestVectors(L_B, c*B^(-1) : Max := bound)] : c in cs | not IsZero(c)];
+    else
+        ret cat:= &cat[[c - Vector(ChangeRing(v, Rationals())*B) : v in ClosestVectors(L_B, c*B^(-1))] : c in cs | not IsZero(c)];
+    end if;
     return ret;
 end function;
 
@@ -51,7 +55,11 @@ function V_ms(A : max_num := Infinity())
     norms := IsEven(L) select [2..max_norm by 2] else [1..max_norm];
     for n in norms do
         vprintf CanonicalForm, 5: "\n\t\t\t\t\t adding vectors of length %o...", n;
-        VA cat:= &cat[[v[1],-v[1]] : v in ShortVectors(L,n,n : Max := (max_num - #VA) div 2)];
+        if Type(max_num) eq RngIntElt then
+            VA cat:= &cat[[v[1],-v[1]] : v in ShortVectors(L,n,n : Max := (max_num - #VA) div 2)];
+        else
+            VA cat:= &cat[[v[1],-v[1]] : v in ShortVectors(L,n,n)];
+        end if;
         Lsub := sub<L | VA>;
         vprintf CanonicalForm, 5: "done! rank is %o.", Rank(Lsub);
         if Rank(Lsub) eq Rank(L) then
@@ -66,7 +74,7 @@ function V_ms(A : max_num := Infinity())
     return VA;
 end function;
 
-function V_cvp(A : max_num := Infinity())
+function V_cvp(A : max_num := Infinity(), bound := Infinity())
     A := ChangeRing(A, Rationals());
     L := LatticeWithGram(A);
     if Type(max_num) eq RngIntElt then
@@ -94,10 +102,10 @@ function V_cvp(A : max_num := Infinity())
     if (r eq Rank(L)) then
 	    V_cvp_A2 := [];
     else
-	    V_cvp_A2 := V_cvp(A2 : max_num := max_num);
+	    V_cvp_A2 := V_cvp(A2 : max_num := max_num, bound := bound);
         if IsEmpty(V_cvp_A2) then return []; end if;
     end if;
-    A1_part := [Vector(Rationals(), v)*B1 : v in V_wr_cvp(A1)];
+    A1_part := [Vector(Rationals(), v)*B1 : v in V_wr_cvp(A1 : bound := bound)];
     proj_Z := ChangeRing(Denominator(proj)*proj, Integers());
     assert sub<L | A1_part> eq L1;
     // This is not true, need to figure out what the correct statement is
@@ -105,11 +113,17 @@ function V_cvp(A : max_num := Infinity())
     B2_Z := ChangeRing(Denominator(proj)*B2, Integers());
     A2_part := [Solution(Transpose(proj_Z), Vector(v)*B2_Z) : v in V_cvp_A2];
     // union_A2_part := &cat[[v - w : w in ClosestVectors(L1,v - v*proj)] : v in A2_part];
-    union_A2_part :=  &cat[[v - w : w in ClosestVectors(L1,v - v*Transpose(proj))] : v in A2_part];
+    if Type(bound) eq RngIntElt then
+        union_A2_part :=  &cat[[v - w : w in ClosestVectors(L1,v - v*Transpose(proj) : Max := bound)] : v in A2_part];
+    else
+        union_A2_part :=  &cat[[v - w : w in ClosestVectors(L1,v - v*Transpose(proj))] : v in A2_part];
+    end if;
     VA := A1_part cat union_A2_part;
     VA := [v : v in VA | v ne 0];
     Lsub :=  sub<L | VA>;
-    assert Lsub eq L;
+    if Type(bound) ne RngIntElt then
+        assert Lsub eq L;
+    end if;
     return VA;
 end function;
 
@@ -130,6 +144,41 @@ function V_best(A)
     sorted := Sort(VAs, func<x,y | #x[1]-#y[1]>);
     // return sorted[1];
     return sorted[1][1];
+end function;
+
+function minimize_vector_set(VA, G, L)
+    //G := AutomorphismGroup(Dual(badl));
+    //G := AutomorphismGroup(L);
+    lut := AssociativeArray();
+    for j->vj in VA do lut[vj] := j; end for;
+    perms := [[lut[VA[j]^g] : j in [1..#VA]] : g in Generators(G)];
+    pg := PermutationGroup<#VA|perms>;
+    orbs := Orbits(pg);
+    pi := [#orb : orb in orbs];
+    subs := [S : S in Subsets({1..#pi})];
+    lens := [&+[Integers() | pi[j] : j in S] : S in subs];
+    Sort(~lens, ~orb_subs_perm);
+    for j in [1..#subs] do
+        S := subs[j^orb_subs_perm];
+        vecs := &cat[[VA[i] : i in orbs[j]] : j in S];
+        sublat := sub< L | vecs>;
+        if Rank(sublat) ne Rank(L) then continue; end if;
+        if sublat eq L then return vecs; end if;
+        // Not yet sure what to do if we only span a sublattice of finite index
+        /*
+        A := ChangeRing(GramMatrix(L), Rationals());
+        L1 := satspan(Basis(sublat), A);
+        if L1 eq L then
+            B1 := ChangeRing(Matrix(Basis(L1)),Rationals());
+            A1 := B1 * A * Transpose(B1);
+            vecs := [Vector(Rationals(), v)*B1 : v in V_cvp(A1)];
+            assert sub<L | vecs> eq L;
+            return vecs;
+        end if;
+        */
+    end for;
+    // Should not be reaching this point
+    assert false;
 end function;
 
 function V_best_with_dual(A)
@@ -296,7 +345,18 @@ intrinsic CanonicalForm(A::AlgMatElt) -> AlgMatElt
     else
       U := Transpose(U)*T;
     end if;
+    /*
+    diag := Diagonal(can_A);
+    Sort(~diag, ~perm);
+    P := PermutationMatrix(Integers(), perm);
+    U := P*U;
+    can_A := P*can_A*Transpose(P);
+    */
     assert can_A eq U*A*Transpose(U);
+    L, T := LLL(LatticeWithGram(can_A : CheckPositive := false));
+    can_A := GramMatrix(L);
+    U := T*U;
+    assert U*A*Transpose(U) eq can_A;
     vprintf CanonicalForm, 1 : "Done!\n";
     return can_A, U;
 end intrinsic;
