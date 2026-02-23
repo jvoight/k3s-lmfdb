@@ -101,7 +101,9 @@ function lift(lat,autmat: only_one := false)
       // we could find it by an elimination ideal calculation
       // these polynomials allow us to limit the image of the extra generators
       // in the quotient by the characteristic sublattice
-      good_pols := [{x: x in DefiningPolynomials(p)|Degree(x) eq 2 and forall{i: i in [1..dim*nr]|Degree(x,i) eq 0 or i in [dim*k+nr+1..dim*(k+1)]}}: k in [1..nr-1]];
+      // good_pols := [{x: x in DefiningPolynomials(p)|Degree(x) eq 2 and forall{i: i in [1..dim*nr]|Degree(x,i) eq 0 or i in [dim*k+nr+1..dim*(k+1)]}}: k in [1..nr-1]]; // index error, I think
+      good_pols := [{x: x in DefiningPolynomials(p)|Degree(x) eq 2 and forall{i: i in [1..dim*nr]|Degree(x,i) eq 0 or i in [dim*(k+1)-nr+1..dim*(k+1)]}}: k in [1..nr-1]];
+
       assert forall{i: i in good_pols|#i eq 1};
       short_pols := [Evaluate(Rep(good_pols[i]),[0: j in [1..dim*(i+1)-nr]] cat [Qnr.j: j in [1..nr]] cat [0: j in [dim*(i+1)+1..dim*nr]]): i in [1..nr-1]];
 
@@ -508,3 +510,5 @@ end function;
 end function;
 
 */
+
+
