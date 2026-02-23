@@ -10,7 +10,7 @@ end function;
 
 // this is an example
 // it decomposes into components of rank 5 and 2
-lat := LatticeWithGram(SymmetricMatrix([6,-9,16,-3,7,18,1,-2,-8,8,0,0,-7,4,4,1,-1,0,-2,0,2,-1,2,1,0,0,0,2]));
+// lat := LatticeWithGram(SymmetricMatrix([6,-9,16,-3,7,18,1,-2,-8,8,0,0,-7,4,4,1,-1,0,-2,0,2,-1,2,1,0,0,0,2]));
 function orth_dec(lat)
   mat := GramMatrix(lat);
   dim := Rank(lat);
@@ -31,7 +31,7 @@ function orth_dec(lat)
         new_orth := orth_comp(rs,new_comp);
         // why doesn't Saturation give you a subspace of the same space?
         sat_comp := sub<rs|Basis(Saturation(new_comp))>;
-        if sat_comp eq rs then return [LatticeWithGram(GramMatrix(rs))]; end if; // done
+        if sat_comp eq rs then return [lat] /*[LatticeWithGram(GramMatrix(rs))]*/; end if; // done
         if sub<rs|new_orth,sat_comp> eq rs then
           // we have found a component; recursively find the rest
           orth_lat := LatticeWithGram(GramMatrix(new_orth));
@@ -41,7 +41,7 @@ function orth_dec(lat)
           orth_comps_lat := [sub<lat|[lat|Vector(v)*tolll: v in Basis(c)]>: c in orth_comps_lll];
           assert forall{x: x,y in orth_comps_lat|x eq y or forall{a: a in Basis(x), b in Basis(y)|(a,b) eq 0}};
           assert sub<lat|orth_comps_lat> eq lat;
-          return orth_comps_lll;
+          return orth_comps_lat;
         else
           components := Append([PowerStructure(ModTupRng)|x: x in components|x notin nonorth_comps],sat_comp);
           sub_rs := sub<rs|Basis(Saturation(sub<rs|sub_rs,v>))>;

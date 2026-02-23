@@ -31,6 +31,7 @@ lat := LatticeWithGram(mat8);
 aut_lat := aut_char(lat,4); // the first 4 generators give the root lattice
 */
 
+load "orth_dec.mag";
 Z := Integers();
 Q := Rationals();
 
@@ -284,15 +285,20 @@ end function;
 // we try to build up the group from the bottom by lifting random elements
 // until they generate a subgroup close enough to the subgroup that can
 // be lifted, then search over coset representatives to get it exactly right
-// caution: if the index of the subgroup of Aut(char. sublat.) that can be
-// lifted to the full lattice is greater than max_ind, this will run forever
+
+// since now the index grows as we go, we don't have to worry that it will
+// be too small
+
+forward aut_faster;
+
 function aut_max_ind(lat,d: max_ind := 10)
   if assigned lat`AutomorphismGroup then return lat`AutomorphismGroup; end if;
   if d eq Rank(lat) then return AutomorphismGroup(lat); end if;
   gm := GramMatrix(lat);
   gm_sub := Matrix(d,d,[gm[i,j]: i,j in [1..d]]);
   sublat := LatticeWithGram(gm_sub);
-  aut_sub := AutomorphismGroup(sublat);
+  vprint Lattice,1: "recursively calling to find the automorphism group of the characteristic sublattice";
+  aut_sub := aut_faster(sublat);
 
   ker := lift(lat,Identity(aut_sub));
   vprint Lattice,1: "trying to lift generators";
@@ -383,9 +389,73 @@ function aut_max_ind(lat,d: max_ind := 10)
   return aut_lat;
 end function;
 
+function aut_orth_dec(od,lat)
+    vprint Lattice, 1: "using orthogonal decomposition to calculate automorphism group";
+    // eventually replace this with a custom isomorphism tester,
+    // e.g., based on the canonical forms
+    same_reps := [rep{i: i in [1..#od]|IsIsomorphic(od[i],od[j])}: j in [1..#od]];
+    inds := [x: x in [1..#od]|Index(same_reps,x) eq x];
+    od_gr := [LatticeWithGram(GramMatrix(i)): i in od];
+    aut_reps := [aut_faster(od_gr[i]:use_orth_dec := false): i in inds];
+    // now we need to put the pieces together
+    bases := [Basis(i): i in od];
+    invmat := Matrix(&cat bases)^-1;
+    // first the automorphisms that just act on one component
+    aut_gens := [];
+    for i in [1..#inds], j in Generators(aut_reps[i]) do
+      out := bases;
+      out[inds[i]] := Rows(j*Matrix(bases[inds[i]]));
+      newgen := invmat*Matrix(&cat out);
+      assert Determinant(newgen) in [1,-1] and forall{x: x,y in Basis(lat)|(x,y) eq (x*newgen,y*newgen)};
+      Append(~aut_gens,newgen);
+    end for;
+
+    // now we match the lattices
+    for i in inds do
+      matches := [x: x in [1..#od]|same_reps[x] eq i];
+      if #matches gt 1 then
+        c12 := x where _,x is IsIsomorphic(od_gr[matches[1]],od_gr[matches[2]]);
+        out := bases;
+        out[matches[1]] := Rows(c12^-1*Matrix(bases[matches[2]]));
+        out[matches[2]] := Rows(c12*Matrix(bases[matches[1]]));
+        newgen := invmat*Matrix(&cat out);
+        assert Determinant(newgen) in [1,-1] and forall{x: x,y in Basis(lat)|(x,y) eq (x*newgen,y*newgen)};
+        Append(~aut_gens,newgen);
+        if #matches gt 2 then // we need the other generator of S_n
+          cs := [x where _,x is IsIsomorphic(od_gr[matches[i]],od_gr[matches[i eq #matches select 1 else i+1]]): i in [1..#matches]];
+          out := bases;
+          for i in [1..#matches] do out[matches[i]] := Rows(cs[i]^-1*Matrix(bases[matches[i eq #matches select 1 else i+1]])); end for;
+          newgen := invmat*Matrix(&cat out);
+          assert Determinant(newgen) in [1,-1] and forall{x: x,y in Basis(lat)|(x,y) eq (x*newgen,y*newgen)};
+          Append(~aut_gens,newgen);
+        end if;
+      end if;
+    end for;
+    
+    assert forall{x: x in aut_gens|x*g*Transpose(x) eq g} where g is GramMatrix(lat);
+
+    naut := sub<GL(Rank(lat),Z)|aut_gens>;
+    lat`AutomorphismGroup := naut;
+    return naut;
+end function;
+
+// things to do:
+// make this recursive to avoid using Magma's built-in if possible
+// use Eran's canonical vector code to find small sets of char. vectors
+// use orthogonal decompositions and assemble them later
+
 // this is a fairly crude usage of the new function
-function aut_faster(lat)
-  if assigned lat`AutomorphismGroup then return lat`AutomorphismGroup; end if;
+function aut_faster(lat: use_orth_dec := true)
+  //if assigned lat`AutomorphismGroup then return lat`AutomorphismGroup; end if;
+  if use_orth_dec then
+    od := orth_dec(lat);
+    assert Determinant(Matrix(&cat [Basis(i): i in od])) in [1,-1];
+    if #od gt 1 then 
+      lat`AutomorphismGroup := aut_orth_dec(od,lat);
+      return lat`AutomorphismGroup;
+    end if;
+  end if;
+  
   r := Rank(lat);
   rs := RSpace(Z,r);
   keep := sub<lat|>;
@@ -394,8 +464,9 @@ function aut_faster(lat)
     sub_rs := Saturation(sub<rs|[Eltseq(x[1]): x in ShortVectors(lat,i)]>);
     sat_sub2 := sub<lat|Basis(sub_rs)>;
     if r-Rank(sat_sub2) in [1..3] then keep := sat_sub2; end if;
-    if r-Rank(sat_sub2) eq 0 then break i; end if;
+    if r-Rank(sat_sub2) le 1 then break i; end if;
   end for;
+  if Rank(keep) eq 0 then return AutomorphismGroup(lat); end if;
   if r-Rank(keep) in [1..3] then 
     // rearrange the lattice to put these first
     // doesn't always work
@@ -407,9 +478,9 @@ function aut_faster(lat)
     newlat := LatticeWithGram(Matrix(r,r,[(x,y): x,y in bas]));
     vprint Lattice,1: "finding automorphism group by means of sublattice of codimension", r-Rank(keep);
     // naut := aut_char_simple(newlat,Rank(keep));
-    naut := aut_max_ind(newlat,Rank(keep));
-    oldaut := naut^(GL(r,Z)!Matrix(bas));
-    lat`AutomorphismGroup := oldaut;
+    chaut := aut_max_ind(newlat,Rank(keep));
+    naut := chaut^(GL(r,Z)!Matrix(bas));
+    lat`AutomorphismGroup := naut;
     // assert forall{i: i in Generators(oldaut)|i*g*Transpose(i) eq g} where g is GramMatrix(lat);
   else
     vprint Lattice,2: "falling back on Magma's built-in";
