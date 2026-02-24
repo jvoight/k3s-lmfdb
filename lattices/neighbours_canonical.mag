@@ -97,7 +97,8 @@ end function;
 
 // bd := Infinity(); p := 2; done := {@@}; silent := false; aut_gp_fn := aut_faster; nb_fn := newNeighbours; cf_fn := func<x|CanonicalForm(GramMatrix(x))>; hash := easy_hash; find_canonical := false;
 stoi := func<l,i|sub<l|[x[1]: x in ShortVectors(l,i)]>>;
-easy_hash := func<x|<IsEven(x) select "even" else "odd",a,b,c,d,/*#aut_faster(x),*/ThetaSeries(x,(IsEven(x) select 200 div Dimension(x) else 100 div Dimension(x))),ThetaSeries(dl,(IsEven(dl) select 200 div Dimension(dl) else 100 div Dimension(dl))),bv(x)> where dl is scaled_dual(x) where a,b,c is root_sub(x) where d is [Rank(stoi(x,i)): i in [1..6]]>;
+easy_hash := func<x|<IsEven(x) select "even" else "odd",a,b,c,d,/*#aut_faster(x),*/ThetaSeries(x,(IsEven(x) select 200 div Dimension(x) else 100 div Dimension(x))),ThetaSeries(dl,(IsEven(dl) select 200 div Dimension(dl) else 100 div Dimension(dl)))> where dl is scaled_dual(x) where a,b,c is root_sub(x) where d is [Rank(stoi(x,i)): i in [1..6]]>;
+hash_bv := func<x|Append(easy_hash(x),bv(x))>;
 // further improvement: only compute canonical form when we need it,
 // unless find_canonical is set to true
 // function list_genus(pd: bd := Infinity(), p := 2, done := {@@}, silent := false, aut_gp_fn := AutomorphismGroup, nb_fn := Neighbours, cf_fn := func<x|CanonicalForm(GramMatrix(x))>, hash := easy_hash, thorough := true, find_canonical := false)
