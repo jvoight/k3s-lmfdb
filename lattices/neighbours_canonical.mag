@@ -2,6 +2,8 @@
 Z := Integers();
 Q := Rationals();
 load "aut-char.mag";
+if assigned orth_comp then delete orth_comp; end if;
+import "orth_dec.mag": orth_comp;
 Attach("canonical_form.m");
 Attach("my_neighbors.m");
 
@@ -50,7 +52,7 @@ Zx := PolynomialRing(Z);
 // SuccessiveMinima doesn't work, because Magma crashes when it might be useful
 function genera_shortest(l)
   sv := ShortestVectors(l);
-  ocsv := [LatticeWithGram(GramMatrix(orth_comp(r,sub<r|Eltseq(i)>))): i in ShortestVectors(l)] where r is RSpace(Z,10,GramMatrix(l));
+  ocsv := [LatticeWithGram(GramMatrix(orth_comp(r,sub<r|Eltseq(i)>))): i in ShortestVectors(l)] where r is RSpace(Z,Rank(l),GramMatrix(l));
   gens := {*Genus(i): i in ocsv*};
   return gens;
 end function;
@@ -136,6 +138,7 @@ function list_genus(pd: bd := Infinity(), p := 2, done := {@@}, silent := false,
       end if;
     end if;
     if is_new then
+      vprint Lattice: "found new lattice with Gram matrix", Eltseq(GramMatrix(l));
       Include(~done,l);
       if find_canonical or not new_hash then
         can_forms[#done] := cf;
