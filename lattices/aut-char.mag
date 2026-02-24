@@ -32,8 +32,8 @@ aut_lat := aut_char(lat,4); // the first 4 generators give the root lattice
 */
 
 // if the next line is commented out, I get an error when I reload the file
-if assigned orth_dec then delete orth_dec; end if;
-import "orth_dec.mag": orth_dec;
+// if assigned orth_dec then delete orth_dec; end if;
+// import "orth_dec.mag": orth_dec;
 Z := Integers();
 Q := Rationals();
 
@@ -448,11 +448,12 @@ end function;
 // use Eran's canonical vector code to find small sets of char. vectors
 // use orthogonal decompositions and assemble them later
 
+
 // this is a fairly crude usage of the new function
 function aut_faster(lat: use_orth_dec := true, orth_bd := 10)
   if assigned lat`AutomorphismGroup then return lat`AutomorphismGroup; end if;
   if use_orth_dec then
-    od := orth_dec(lat: norm_bd := orth_bd*(IsEven(lat) select 2 else 1));
+    od := OrthogonalDecompositionFaster(lat: norm_bd := orth_bd*(IsEven(lat) select 2 else 1));
     assert Determinant(Matrix(&cat [Basis(i): i in od])) in [1,-1];
     if #od gt 1 then 
       lat`AutomorphismGroup := aut_orth_dec(od,lat);
@@ -492,6 +493,12 @@ function aut_faster(lat: use_orth_dec := true, orth_bd := 10)
   end if;
   return naut;
 end function;
+
+intrinsic AutomorphismGroupFaster(lat::Lat : use_orth_dec := true, orth_bd := 10) -> GrpMat
+{ Return the automorphism group of the lattice lat.}
+    return aut_faster(lat: use_orth_dec := use_orth_dec, orth_bd := orth_bd);
+end intrinsic;
+
 
 /* unused code:
       for p in CartesianProduct([Set(i): i in short

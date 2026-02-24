@@ -14,8 +14,6 @@
 
 AttachSpec("lattices.spec");
 
-import "aut-char.mag" : aut_faster;
-
 if assigned labels then
     label_list := Split(labels, ":");
 else
@@ -58,7 +56,7 @@ procedure() // forcing magma to read the full input before forking
 failed := [];
 for l in label_list do
     try
-        G := automorphism_group(l : alg := aut_faster);
+        G := automorphism_group(l : alg := AutomorphismGroupFaster);
     catch e
         printf "ERROR: %o: %o\n", l, e;
         Append(~failed, l);

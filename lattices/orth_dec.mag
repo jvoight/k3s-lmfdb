@@ -98,6 +98,11 @@ function orth_dec(lat: norm_bd := Infinity())
   // error "shouldn't be here"; // this can now happen if norm_bd is set
 end function;
 
+intrinsic OrthogonalDecompositionFaster(lat::Lat : norm_bd := Infinity()) -> SeqEnum[Lat]
+{Return the orthogonal decomposition of the lattice lat with norm bound norm_bd.}
+    return orth_dec(lat: norm_bd := norm_bd);
+end intrinsic;
+
 function split_1(lat)
   sv := ShortVectors(lat,1,1);
   sub_1 := sub<lat|[x[1]: x in sv]>;
