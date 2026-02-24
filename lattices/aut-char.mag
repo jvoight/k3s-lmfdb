@@ -31,7 +31,8 @@ lat := LatticeWithGram(mat8);
 aut_lat := aut_char(lat,4); // the first 4 generators give the root lattice
 */
 
-// if assigned orth_dec then delete orth_dec; end if;
+// if the next line is commented out, I get an error when I reload the file
+if assigned orth_dec then delete orth_dec; end if;
 import "orth_dec.mag": orth_dec;
 Z := Integers();
 Q := Rationals();

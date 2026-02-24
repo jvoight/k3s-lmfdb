@@ -32,6 +32,15 @@ function root_sub(lat)
   return rl,tor,#ShortVectors(lat,4,4);
 end function;
 
+// the BV-invariant, as described in Gaetan Chenevier's talk.
+function bv(lat: bd := 3)
+  sv := [x[1]: x in ShortVectors(lat,bd*(IsEven(lat) select 2 else 1))];
+  mat := SymmetricMatrix([(sv[i],sv[j]) mod 2: i in [1..j], j in [1..#sv]]);
+  matsq := mat^2;
+  bv_inv := {*Multiset(Eltseq(i)): i in Rows(matsq)*};
+  return bv_inv;
+end function;
+  
 // Function to enumerate the p-neighbourhood of a lattice using the
 // canonical form of DS-H-V-vW, as implemented in canonical_form.m.
 // Arguments:
@@ -88,7 +97,7 @@ end function;
 
 // bd := Infinity(); p := 2; done := {@@}; silent := false; aut_gp_fn := aut_faster; nb_fn := newNeighbours; cf_fn := func<x|CanonicalForm(GramMatrix(x))>; hash := easy_hash; find_canonical := false;
 stoi := func<l,i|sub<l|[x[1]: x in ShortVectors(l,i)]>>;
-easy_hash := func<x|<IsEven(x) select "even" else "odd",a,b,c,d,/*#aut_faster(x),*/ThetaSeries(x,(IsEven(x) select 200 div Dimension(x) else 100 div Dimension(x))),ThetaSeries(dl,(IsEven(dl) select 200 div Dimension(dl) else 100 div Dimension(dl)))> where dl is scaled_dual(x) where a,b,c is root_sub(x) where d is [Rank(stoi(x,i)): i in [1..6]]>;
+easy_hash := func<x|<IsEven(x) select "even" else "odd",a,b,c,d,/*#aut_faster(x),*/ThetaSeries(x,(IsEven(x) select 200 div Dimension(x) else 100 div Dimension(x))),ThetaSeries(dl,(IsEven(dl) select 200 div Dimension(dl) else 100 div Dimension(dl))),bv(x)> where dl is scaled_dual(x) where a,b,c is root_sub(x) where d is [Rank(stoi(x,i)): i in [1..6]]>;
 // further improvement: only compute canonical form when we need it,
 // unless find_canonical is set to true
 // function list_genus(pd: bd := Infinity(), p := 2, done := {@@}, silent := false, aut_gp_fn := AutomorphismGroup, nb_fn := Neighbours, cf_fn := func<x|CanonicalForm(GramMatrix(x))>, hash := easy_hash, thorough := true, find_canonical := false)

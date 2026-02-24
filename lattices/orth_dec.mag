@@ -65,8 +65,13 @@ function orth_dec(lat: norm_bd := Infinity())
             // can we do better than this?
             if sub<rs|sat_sum_comps,orth_sub> eq rs then
               // we have found a decomposition
-              orth_comps_lll := Append(orth_dec(sat_sum_comps:norm_bd := norm_bd),sub<rs|orth_sub>);
+              // unfortunately we need this silly PowerStructure, to stop
+              // Magma from deciding that the dimension is part of the type
+              od_ssc := [PowerStructure(ModTupRng)|sub<rs|Basis(i)>: i in orth_dec(sat_sum_comps:norm_bd := norm_bd)];
+              rso := sub<rs|orth_sub>;
+              orth_comps_lll := Append(od_ssc,rso);
               orth_comps_lat := [sub<lat|[lat|Vector(v)*tolll: v in Basis(c)]>: c in orth_comps_lll];
+              assert forall{i: a in Basis(i), b in Basis(j), i,j in orth_comps_lat|i eq j or (a,b) eq 0};
               return orth_comps_lat;
             elif #components eq 1 then
               return [lat];
@@ -86,7 +91,9 @@ function orth_dec(lat: norm_bd := Infinity())
     end for;
   end for;
 
-  "!!! failed to find orthogonal decomposition";
+  if norm_bd le Max(Diagonal(lll)) then
+    "!!! failed to find orthogonal decomposition";
+  end if;
   return [lat];
   // error "shouldn't be here"; // this can now happen if norm_bd is set
 end function;
