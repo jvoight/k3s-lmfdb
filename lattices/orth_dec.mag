@@ -29,7 +29,8 @@ function orth_dec(lat: norm_bd := Infinity())
   bd := Min(Max(Diagonal(lll)),norm_bd);
   components := [];
   rs := RSpace(Z,dim,lll);
-
+  done := false;
+  
   sub_rs := sub<rs|>;
 
   for l in [1..bd] do
@@ -44,7 +45,10 @@ function orth_dec(lat: norm_bd := Infinity())
         new_orth := orth_comp(rs,new_comp);
         // why doesn't Saturation give you a subspace of the same space?
         sat_comp := sub<rs|Basis(Saturation(new_comp))>;
-        if sat_comp eq rs or (Rank(sat_comp) eq Rank(rs)-1 and sub<rs|new_orth,sat_comp> ne rs) then return [lat] /*[LatticeWithGram(GramMatrix(rs))]*/; end if; // done
+        if sat_comp eq rs or (Rank(sat_comp) eq Rank(rs)-1 and sub<rs|new_orth,sat_comp> ne rs) then
+          done := true; ret_val := [lat];/*[LatticeWithGram(GramMatrix(rs))];*/
+          break l;
+        end if; // done
         if sub<rs|new_orth,sat_comp> eq rs then
           // we have found a component; recursively find the rest
           vprint Lattice, 1: "splitting into two factors";
@@ -55,7 +59,8 @@ function orth_dec(lat: norm_bd := Infinity())
           orth_comps_lat := [sub<lat|[lat|Vector(v)*tolll: v in Basis(c)]>: c in orth_comps_lll];
           assert forall{x: x,y in orth_comps_lat|x eq y or forall{a: a in Basis(x), b in Basis(y)|(a,b) eq 0}};
           assert sub<lat|orth_comps_lat> eq lat;
-          return orth_comps_lat;
+          done := true; ret_val := orth_comps_lat;
+          break l;
         else
           vprint Lattice, 2: "combining", #nonorth_comps, "component"*(#nonorth_comps eq 1 select "" else "s"), "with a new one";
           components := Append([PowerStructure(ModTupRng)|x: x in components|x notin nonorth_comps],sat_comp);
@@ -74,9 +79,11 @@ function orth_dec(lat: norm_bd := Infinity())
               orth_comps_lll := Append(od_ssc,rso);
               orth_comps_lat := [sub<lat|[lat|Vector(v)*tolll: v in Basis(c)]>: c in orth_comps_lll];
               assert forall{i: a in Basis(i), b in Basis(j), i,j in orth_comps_lat|i eq j or (a,b) eq 0};
-              return orth_comps_lat;
+              done := true; ret_val := orth_comps_lat;
+              break l;
             elif #components eq 1 then
-              return [lat];
+              done := true; ret_val := [lat];
+              break l;
             end if;
             // otherwise we can't conclude yet; maybe there are two D_8
             // components with an element of norm 4 bridging them
@@ -93,10 +100,10 @@ function orth_dec(lat: norm_bd := Infinity())
     end for;
   end for;
 
-  if norm_bd le Max(Diagonal(lll)) then
+  if norm_bd ge Max(Diagonal(lll)) and not done then
     "!!! failed to find orthogonal decomposition";
   end if;
-  return [lat];
+  return ret_val;
   // error "shouldn't be here"; // this can now happen if norm_bd is set
 end function;
 
