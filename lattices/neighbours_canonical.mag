@@ -1,12 +1,9 @@
 // function to enumerate a genus using canonical forms
 Z := Integers();
 Q := Rationals();
-Attach("orth_dec.mag");
-Attach("aut-char.mag");
+load "aut-char.mag";
 if assigned orth_comp then delete orth_comp; end if;
 import "orth_dec.mag": orth_comp;
-if assigned aut_faster then delete aut_faster; end if;
-import "aut-char.mag": aut_faster;
 Attach("canonical_form.m");
 Attach("my_neighbors.m");
 
