@@ -30,6 +30,7 @@ function orth_dec(lat: norm_bd := Infinity())
   components := [];
   rs := RSpace(Z,dim,lll);
   done := false;
+  ret_val := [lat]; // if we fail, we fail
   
   sub_rs := sub<rs|>;
 
@@ -105,7 +106,6 @@ function orth_dec(lat: norm_bd := Infinity())
     "!!! failed to find orthogonal decomposition";
   end if;
   return ret_val;
-  // error "shouldn't be here"; // this can now happen if norm_bd is set
 end function;
 
 intrinsic OrthogonalDecompositionFaster(lat::Lat : norm_bd := Infinity()) -> SeqEnum[Lat]
