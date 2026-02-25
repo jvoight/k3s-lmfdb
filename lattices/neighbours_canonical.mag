@@ -36,9 +36,9 @@ function root_sub(lat)
 end function;
 
 // the BV-invariant, as described in Gaetan Chenevier's talk.
-function bv(lat: bd := 3)
+function bv(lat: bd := 3, p := 0)
   sv := [x[1]: x in ShortVectors(lat,bd*(IsEven(lat) select 2 else 1))];
-  mat := SymmetricMatrix([(sv[i],sv[j]) mod 2: i in [1..j], j in [1..#sv]]);
+  mat := SymmetricMatrix((p eq 0 select Z else GF(p)),[(sv[i],sv[j]) mod 2: i in [1..j], j in [1..#sv]]);
   matsq := mat^2;
   bv_inv := {*Multiset(Eltseq(i)): i in Rows(matsq)*};
   return bv_inv;

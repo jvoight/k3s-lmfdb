@@ -18,6 +18,8 @@ end function;
 // component that is not a component, then the lattice is indecomposable
 // more generally, if our components add to codimension 1 but the saturation
 // of their sum is not a component, the lattice is indecomposable
+
+// this is much the same algorithm as in arXiv:0604320, by Hemkemeier-Vallentin
 function orth_dec(lat: norm_bd := Infinity())
   if Rank(lat) eq 0 then return [lat]; end if;
   done := false;
