@@ -1,6 +1,7 @@
 // This file is used to find all of the representatives in a positive definite genus, along with some difficult to compute quantities about the genus itself.
 // Usage: magma -b label:=foo run_fill_genus.m
 // Batch: magma -b labels:=foo:bar:baz run_fill_genus.m
+// Options: timeout:=N (default 60, seconds per label)
 //
 // Parallel across servers:
 //   xargs -n 100 < genera_todo.txt | tr ' ' ':' > genera_todo_chunked.txt
@@ -16,6 +17,9 @@ AttachSpec("lattices.spec");
 if not assigned verbose then verbose := "0"; end if;
 SetVerbose("FillGenus", StringToInteger(verbose));
 
+if not assigned timeout then timeout := "60"; end if;
+timeout := StringToInteger(timeout);
+
 if assigned labels then
     label_list := Split(labels, ":");
 else
@@ -26,7 +30,7 @@ procedure() // forcing magma to read the full input before forking
 failed := [];
 for l in label_list do
     try
-        FillGenus(l : timeout := 60);
+        FillGenus(l : timeout := timeout);
     catch e
         printf "ERROR: %o: %o\n", l, e;
         Append(~failed, l);
