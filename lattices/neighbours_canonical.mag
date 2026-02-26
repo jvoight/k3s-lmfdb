@@ -1,12 +1,12 @@
 // function to enumerate a genus using canonical forms
 Z := Integers();
 Q := Rationals();
-// Attach("aut-char.mag");
-// Attach("orth_dec.mag");
+Attach("aut-char.mag");
+Attach("orth_dec.mag");
 // if assigned orth_comp then delete orth_comp; end if;
 // import "orth_dec.mag": orth_comp;
-// Attach("canonical_form.m");
-// Attach("my_neighbors.m");
+Attach("canonical_form.m");
+Attach("my_neighbors.m");
 
 // A very quick lattice hash.  This is better with a faster
 // OrthogonalDecomposition (cf. my email)
@@ -296,6 +296,9 @@ function list_genus(pd: bd := Infinity(), p := 2, done := {@@}, silent := false,
           isom_cfs := [can_forms[i]: i in isom_lat];
           "canonical forms match:", [cf eq i: i in isom_cfs];
           "Gram matrices:", [Eltseq(GramMatrix(i)): i in Append([done[x]: x in isom_lat],lat)];
+          "already computed canonical forms:", Append(isom_cfs,cf);
+          "recomputed canonical forms:", [cf_fn(i): i in Append([done[i]: i in isom_lat],lat)];
+          error "something is wrong with the canonical forms";
         end if;
         
         Append(~done_hashes,h);
@@ -315,7 +318,8 @@ function list_genus(pd: bd := Infinity(), p := 2, done := {@@}, silent := false,
   return done, done_hashes;
 end function;
 
-intrinsic GenusRepresentativesFaster(pd::Lat : bd := Infinity(), p := 2, done := {@@}, silent := false, aut_gp_fn := AutomorphismGroupFaster, nb_fn := newNeighbours, cf_fn := func<x|CanonicalForm(GramMatrix(x))>, hash := easy_hash, thorough := true, find_canonical := false) -> SeqEnum
+/* intrinsic GenusRepresentativesFaster(pd::Lat : bd := Infinity(), p := 2, done := {@@}, silent := false, aut_gp_fn := AutomorphismGroupFaster, nb_fn := newNeighbours, cf_fn := func<x|CanonicalForm(GramMatrix(x))>, hash := easy_hash, thorough := true, find_canonical := false) -> SeqEnum
 {Find the representatives of the genus of the lattice pd.}
     return list_genus(pd: bd := bd, p := p, done := done, silent := silent, aut_gp_fn := aut_gp_fn, nb_fn := nb_fn, cf_fn := cf_fn, hash := hash, thorough := thorough, find_canonical := find_canonical);
 end intrinsic;
+*/
