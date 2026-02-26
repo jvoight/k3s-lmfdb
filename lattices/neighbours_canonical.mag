@@ -124,7 +124,7 @@ function list_genus_old(pd: bd := Infinity(), p := 2, done := {@@}, silent := fa
     ct +:= 1;
     if not silent then
       if ct mod 100 eq 0 then
-        printf "%o done, %o found, %o left of which %o hashed, time taken %o\n", ct, #done, #todo, #hashed, Cputime(cp);
+        printf "%o done, %o found, %o left of which %o hashed, time taken %o\n", ct, #done, #todo, Cputime(cp);
       else vprintf Genus,2: (#good_inds gt 0 select "+" else "*");
       end if;
     end if;
@@ -202,6 +202,14 @@ nb := list_genus(l:nb_fn := newNeighbours,aut_gp_fn := AutomorphismGroupFaster);
 // testing, which means carrying some additional information around with
 // the lattices.  Need to think about how to write the code.
 function list_genus(pd: bd := Infinity(), p := 2, done := {@@}, silent := false, aut_gp_fn := AutomorphismGroupFaster, nb_fn := newNeighbours, cf_fn := func<x|CanonicalForm(GramMatrix(x))>, hash := easy_hash, thorough := true, find_canonical := false)
+  if Rank(pd) eq 2 and p eq 2 and IsEven(Determinant(pd)) then
+    "warning: cannot run for lattices of rank 2 with even determinant for p = 2";
+    return {@pd@},[];
+  elif IsEven(Determinant(pd)) and not IsEven(pd) then
+    "warning: cannot run for odd lattices with even determinant for p = 2";
+    return {@pd@},[];
+  end if;
+  
   _ := aut_gp_fn(pd);
   g := Genus(pd);
   mass := Mass(pd);
