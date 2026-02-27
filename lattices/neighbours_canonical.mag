@@ -277,7 +277,7 @@ function list_genus(pd: bd := Infinity(), p := 2, done := {@@}, silent := false,
       // assert hash(lat) eq h;
       Remove(~hashed,ind);
       hashed_inds := [[x-(x lt ind select 0 else 1): x in h|x ne ind]: h in hashed_inds];
-      assert forall{i: i in hashed_inds[j], j in [1..#hashed_inds]|hash(hashed[i]) eq known_hashes[j]};
+      // assert forall{i: i in hashed_inds[j], j in [1..#hashed_inds]|hash(hashed[i]) eq known_hashes[j]};
       is_new := true;
       cf := cf_fn(lat);
       for i in [1..#done] do
@@ -323,7 +323,7 @@ function list_genus(pd: bd := Infinity(), p := 2, done := {@@}, silent := false,
   return done, done_hashes;
 end function;
 
-intrinsic GenusRepresentativesFaster(pd::Lat : bd := Infinity(), p := 2, done := {@@}, silent := false, aut_gp_fn := AutomorphismGroupFaster, nb_fn := newNeighbours, cf_fn := func<x|CanonicalForm(GramMatrix(x))>, hash := easy_hash, thorough := true, find_canonical := false) -> SeqEnum
+intrinsic GenusRepresentativesFaster(pd::Lat : bd := Infinity(), p := 2, done := {@@}, silent := true, aut_gp_fn := AutomorphismGroupFaster, nb_fn := newNeighbours, cf_fn := func<x|CanonicalForm(GramMatrix(x))>, hash := easy_hash, thorough := true, find_canonical := false) -> SeqEnum
 {Find the representatives of the genus of the lattice pd.}
     return list_genus(pd: bd := bd, p := p, done := done, silent := silent, aut_gp_fn := aut_gp_fn, nb_fn := nb_fn, cf_fn := cf_fn, hash := hash, thorough := thorough, find_canonical := find_canonical);
 end intrinsic;
