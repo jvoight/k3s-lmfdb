@@ -33,8 +33,8 @@ aut_lat := aut_char(lat,4); // the first 4 generators give the root lattice
 
 // if the next line is commented out, I get an error when I reload the file
 // if assigned orth_dec then delete orth_dec; end if;
-Attach("orth_dec.mag");
-import "orth_dec.mag": orth_dec;
+// Attach("orth_dec.mag");
+// import "orth_dec.mag": orth_dec,OrthogonalDecompositionFaster;
 Z := Integers();
 Q := Rationals();
 
@@ -508,31 +508,43 @@ end function;
 // this one is supposed to produce a graph of lattices and their automorphism
 // groups, to be fed to the functions in isom.mag
 
-// I need to document the data type in detail before I forget it
-function aut_graph(lat: hom_up := Eltseq(IdentityMatrix(Z,Rank(lat))), use_orth_dec := true, orth_bd := 10, sub_bd := 10)
+// The data structure is as follows.  We have a rooted tree, where the
+// vertices are lattices together with a map to the (unique) parent,
+// given as a sequence of numbers rather than a matrix so that they can
+// live in the same universe.
+
+// There are two types of edges (for now): either they indicate an
+// orthogonal decomposition of a lattice, or they represent a characteristic
+// sublattice of small codimension that can be used to compute the
+// automorphism group.  The edge, in the latter case, contains the liftable
+// subgroup and the kernel, which we can use to extend isomorphisms from
+// sublattices.
+
+function aut_graph(lat: hom_up := [Eltseq(i): i in Rows(IdentityMatrix(Z,Rank(lat)))], use_orth_dec := true, orth_bd := 10, sub_bd := 10)
   gr := Digraph<{<lat,hom_up>}|>;
   used_od := false;
   if use_orth_dec then
-    od := orth_dec(lat: norm_bd := orth_bd);
+    od := OrthogonalDecompositionFaster(lat: norm_bd := orth_bd);
     if #od gt 1 then
       used_od := true;
       od_grs := [gr];
       for i in od do
         li := LatticeWithGram(GramMatrix(i));
-        ag := aut_graph(li: hom_up := Eltseq(Matrix(Basis(i))), use_orth_dec := use_orth_dec, orth_bd := orth_bd);
+        ag := aut_graph(li: hom_up := [Eltseq(r): r in Rows(Matrix(Basis(i)))], use_orth_dec := use_orth_dec, orth_bd := orth_bd);
         Append(~od_grs,ag);
       end for;
       lat`AutomorphismGroup := aut_orth_dec(od,lat);
       
       newgr := Digraph<&join [Support(i): i in od_grs]|>;
       for i in od_grs, e in EdgeSet(i) do
-        new_e := [rep{v: v in Support(i)|v eq it(e)}: it in [InitialVertex,TerminalVertex]];
+        new_e := [rep{VertexSet(newgr)!v: v in Support(i)|VertexSet(i)!v eq it(e)}: it in [InitialVertex,TerminalVertex]];
         AddEdge(~newgr,new_e[1],new_e[2],Label(e));
       end for;
       for i in od_grs[2..#od_grs] do
         ii := initial(i);
         e_ii := [VertexSet(newgr)|<lat,hom_up>,rep{x: x in Support(i)|VertexSet(i)!x eq ii}];
-        AddEdge(~newgr,e_ii[1],e_ii[2],<"orth",Index(od_grs,i)-1>);
+        // all edge labels have to belong to the same universe
+        AddEdge(~newgr,e_ii[1],e_ii[2],<"orth",orth_bd,hom<t->t|>> where t is SymmetricGroup(1));
       end for;
     end if;
   end if;
@@ -556,13 +568,14 @@ function aut_graph(lat: hom_up := Eltseq(IdentityMatrix(Z,Rank(lat))), use_orth_
       // this is not enough information; we also want to store the
       // information of what can be lifted and the kernel
       latkeep := LatticeWithGram(GramMatrix(keep));
-      lkhom := Eltseq(Matrix(Basis(keep)));
-      lkgr := aut_graph(latkeep: hom_up := Eltseq(lkhom), use_orth_dec := use_orth_dec, orth_bd := orth_bd);
+      lkhom := [Eltseq(r): r in Rows(Matrix(Basis(keep)))];
+      lkgr := aut_graph(latkeep: hom_up := lkhom, use_orth_dec := use_orth_dec, orth_bd := orth_bd);
       new_v := {<lat,hom_up>} join Support(lkgr);
       newgr := Digraph<new_v|>;
+      // this isn't quite right
       for e in EdgeSet(lkgr) do
         new_e := [rep{x: x in Support(lkgr)|VertexSet(lkgr)!x eq it(e)}: it in [InitialVertex,TerminalVertex]];
-        AddEdge(~newgr,new_e[1],new_e[2],Label(e));
+        AddEdge(~newgr,VertexSet(newgr)!new_e[1],VertexSet(newgr)!new_e[2],Label(e));
       end for;
 
       newbas := Basis(keep);
