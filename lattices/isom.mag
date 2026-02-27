@@ -21,6 +21,22 @@
 
 // It is hoped that this will speed up genus enumeration.
 
+// Example of usage:
+/*
+AttachSpec("lattices.spec");
+load "isom.mag"; // sorry
+import "aut-char.mag":aut_graph;
+
+gram := DiagonalJoin(CartanMatrix("e8e8"),Matrix([[50]]));
+for i in [1,10] do gram[i,17] := 1; gram[17,i] := 1; end for;
+lat := LatticeWithGram(gram);
+g0 := RandomGLnZ(17,17,17);
+l2 := LatticeWithGram(g0*gram*Transpose(g0));
+lat_gr := aut_graph(lat:sub_bd := 4);
+// now Magma would take forever to find an automorphism between lat and l2, but
+// once the graph is built this is very fast
+time assert isom_graph(lat_gr,l2);
+*/
 
 // we have lattices l1 and l2 with sublattices sl1 and sl2.  Does the
 // automorphism lift, and if so to what?
