@@ -1,18 +1,12 @@
 // function to enumerate a genus using canonical forms
 Z := Integers();
 Q := Rationals();
-<<<<<<< HEAD
-load "aut-char.mag";
-if assigned orth_comp then delete orth_comp; end if;
-import "orth_dec.mag": orth_comp;
-=======
 /*Attach("aut-char.mag");
 // import "aut-char.mag":AutomorphismGroupFaster;
 Attach("orth_dec.mag");
 // import "orth_dec.mag":OrthogonalComplementFaster;
 // if assigned orth_comp then delete orth_comp; end if;
 // import "orth_dec.mag": orth_comp;
->>>>>>> f6356391a08c996639f6f987b8d32b06b1daffa4
 Attach("canonical_form.m");
 // import "canonical_form.m":CanonicalForm;
 Attach("my_neighbors.m");

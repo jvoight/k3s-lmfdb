@@ -51,12 +51,6 @@ function orth_dec(lat: norm_bd := Infinity())
         new_orth := orth_comp(rs,new_comp);
         // why doesn't Saturation give you a subspace of the same space?
         sat_comp := sub<rs|Basis(Saturation(new_comp))>;
-<<<<<<< HEAD
-        if sat_comp eq rs or (Rank(sat_comp) eq Rank(rs)-1 and sub<rs|new_orth,sat_comp> ne rs) then return [lat] /*[LatticeWithGram(GramMatrix(rs))]*/; end if; // done
-        if sub<rs|new_orth,sat_comp> eq rs then
-          // we have found a component; recursively find the rest
-          vprint Lattice, 1: "splitting into two factors";
-=======
         if sat_comp eq rs or (Rank(sat_comp) eq Rank(rs)-1 and sub<rs|new_orth,sat_comp> ne rs) then
           done := true; ret_val := [lat];/*[LatticeWithGram(GramMatrix(rs))];*/
           break l;
@@ -64,7 +58,6 @@ function orth_dec(lat: norm_bd := Infinity())
         if sub<rs|new_orth,sat_comp> eq rs then
           // we have found a component; recursively find the rest
           vprint Lattice, 1: "%%% splitting into two factors";
->>>>>>> f6356391a08c996639f6f987b8d32b06b1daffa4
           orth_lat := LatticeWithGram(GramMatrix(new_orth));
           orth_rs := RSpace(Z,Rank(new_orth),GramMatrix(new_orth));
           orth_comps := orth_dec(orth_lat:norm_bd := norm_bd);
@@ -86,29 +79,19 @@ function orth_dec(lat: norm_bd := Infinity())
               // we have found a decomposition
               // unfortunately we need this silly PowerStructure, to stop
               // Magma from deciding that the dimension is part of the type
-<<<<<<< HEAD
-              od_ssc := [PowerStructure(ModTupRng)|sub<rs|Basis(i)>: i in orth_dec(sat_sum_comps:norm_bd := norm_bd)];
-=======
               ssc_lat := LatticeWithGram(GramMatrix(sat_sum_comps));
               od_ssc_lat := orth_dec(ssc_lat:norm_bd := norm_bd);
               // there is a bit too much back-and-forth here
               od_ssc := [PowerStructure(ModTupRng)|sub<rs|[&+[v[j]*Basis(sat_sum_comps)[j]: j in [1..Dimension(ssc_lat)]]: v in Basis(i)]>: i in od_ssc_lat];
->>>>>>> f6356391a08c996639f6f987b8d32b06b1daffa4
               rso := sub<rs|orth_sub>;
               orth_comps_lll := Append(od_ssc,rso);
               orth_comps_lat := [sub<lat|[lat|Vector(v)*tolll: v in Basis(c)]>: c in orth_comps_lll];
               assert forall{i: a in Basis(i), b in Basis(j), i,j in orth_comps_lat|i eq j or (a,b) eq 0};
-<<<<<<< HEAD
-              return orth_comps_lat;
-            elif #components eq 1 then
-              return [lat];
-=======
               done := true; ret_val := orth_comps_lat;
               break l;
             elif #components eq 1 then
               done := true; ret_val := [lat];
               break l;
->>>>>>> f6356391a08c996639f6f987b8d32b06b1daffa4
             end if;
             // otherwise we can't conclude yet; maybe there are two D_8
             // components with an element of norm 4 bridging them
@@ -118,31 +101,19 @@ function orth_dec(lat: norm_bd := Infinity())
           if sub_rs eq rs then
             orig_cps := [sub<lat|[v*Transpose(lll): v in Basis(r)]>: r in components];
             try grams := [GramMatrix(i): i in orig_cps]; catch e "failed on lattice", lat; error "foo"; end try;
-<<<<<<< HEAD
-            return orig_cps, grams;
-=======
             done := true; ret_val := orig_cps;
             break l;
->>>>>>> f6356391a08c996639f6f987b8d32b06b1daffa4
           end if;
         end if;
       end if;
     end for;
   end for;
 
-<<<<<<< HEAD
-  if norm_bd le Max(Diagonal(lll)) then
-    "!!! failed to find orthogonal decomposition";
-  end if;
-  return [lat];
-  // error "shouldn't be here"; // this can now happen if norm_bd is set
-=======
   if norm_bd ge Max(Diagonal(lll)) and not done then
     vprint Lattice, 2: "!!! failed to find orthogonal decomposition";
   end if;
   assert forall{x: x,y in ret_val|x eq y or forall{a: a in Basis(x), b in Basis(y)|(a,b) eq 0}};
   return ret_val;
->>>>>>> f6356391a08c996639f6f987b8d32b06b1daffa4
 end function;
 
 intrinsic OrthogonalDecompositionFaster(lat::Lat : norm_bd := Infinity()) -> SeqEnum[Lat]
