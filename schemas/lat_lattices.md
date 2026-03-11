@@ -54,9 +54,9 @@ Label: `dimension.signature.determinant.genus_spec.tiebreaker` where
 | [minimum](https://beta.lmfdb.org/knowledge/show/lattice.minimal_vector) | integer | length of shortest vector (only for definite lattices) |
 | name | text | a string like "A2 2E8", often null |
 | [theta_series](https://beta.lmfdb.org/knowledge/show/lattice.theta) | numeric[] | a vector, counting the number of representations of n (odd) or 2n (even) |
-| theta_prec | integer | Absolute precision of the theta series and dual theta series |
+| theta_prec | integer | Absolute precision of the theta series |
 | [gram](https://beta.lmfdb.org/knowledge/show/lattice.gram) | smallint[] | A gram matrix for this isometry class |
-| gram_other | numeric[] | A list of additional gram matrices.  This may include human-preferred gram matrices other than the canonical Gram matrix (for E8 for example), or Gram matrices whose entries are too large to fit in an integer |
+| gram_others | numeric[] | A list of additional gram matrices.  This may include human-preferred gram matrices other than the canonical Gram matrix (for E8 for example), or Gram matrices whose entries are too large to fit in an integer |
 | gram_is_canonical | boolean | whether the Gram matrix is canonical (null if not definite) |
 | orthogonal_complement | integer[] | a vector or list of vectors in the ambient lattice for the genus so that this lattice is isometric to the orthogonal complement of their span |
 | [canonical_gram] | integer[] | Canonical form for the Gram matrix; currently only available for definite lattices |
@@ -69,6 +69,7 @@ Label: `dimension.signature.determinant.genus_spec.tiebreaker` where
 | is_even | boolean | whether the lattice is even |
 | dual_label | text | the label for the rescaled dual lattice (may be null if the discriminant is too large) |
 | dual_theta_series | numeric[] | the theta series of the rescaled dual lattice |
+| theta_prec | integer | Absolute precision of the dual theta series |
 | dual_hermite | numeric | the Hermite number of the rescaled dual lattice (only for definite lattices) |
 | dual_kissing | bigint | the kissing number of the rescaled dual lattice (only for definite lattices) |
 | dual_density | numeric | the center density of the rescaled dual lattice (only for definite lattices) |

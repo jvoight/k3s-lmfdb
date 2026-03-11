@@ -1,6 +1,5 @@
 declare verbose FillGenus, 1;
 
-import "aut-char.mag" : aut_faster;
 import "neighbours.mag" : neighbours;
 
 function hecke_primes(rank)
@@ -9,6 +8,42 @@ function hecke_primes(rank)
     else
         return [2];
     end if;
+end function;
+
+intrinsic StringToReal(s::MonStgElt) -> RngIntElt
+{ Converts a decimal string (like 123.456 or 1.23456e40 or 1.23456e-10) to a real number at default precision. }
+    if #s eq 0 then return 0.0; end if;
+    if "e" in s then
+        t := Split(s,"e");
+        require #t eq 2: "Input should have the form 123.456e20 or 1.23456e-10";
+        return StringToReal(t[1])*10.0^StringToInteger(t[2]);
+    end if;
+    t := Split(s,".");
+    require #t le 2: "Input should have the form 123 or 123.456 or 1.23456e-10";
+    n := StringToInteger(t[1]);  s := t[1][1] eq "-" select -1 else 1;
+    return #t eq 1 select RealField()!n else RealField()!n + s*RealField()!StringToInteger(t[2])/10^#t[2];
+end intrinsic;
+
+function ThetaSeriesIncremental(L, target_prec, timeout)
+    best_theta := [];
+    best_prec := 0;
+    remaining := timeout;
+    prec := Maximum(16, Minimum(L) + 4);
+    while prec le target_prec and remaining gt 0 do
+        current_prec := Minimum(prec, target_prec);
+        success, theta, elapsed := TimeoutCall(remaining, ThetaSeries, <L, current_prec - 1>, 1);
+        if not success then
+            vprintf FillGenus, 1 : "Theta series timed out at precision %o\n", current_prec;
+            break;
+        end if;
+        best_theta := Eltseq(theta[1]);
+        best_prec := current_prec;
+        vprintf FillGenus, 1 : "Theta series to precision %o in %o s\n", current_prec, elapsed;
+        if current_prec ge target_prec then break; end if;
+        remaining -:= Ceiling(StringToReal(elapsed));
+        prec *:= 2;
+    end while;
+    return best_theta, best_prec;
 end function;
 
 function dict_to_jsonb(dict)
@@ -189,9 +224,17 @@ intrinsic FillGenus(label::MonStgElt : timeout := 1800)
         lat["theta_series"] := "\\N";
         lat["theta_prec"] := "\\N";
         lat["dual_theta_series"] := "\\N";
+        lat["dual_theta_prec"] := "\\N";
         lat["successive_minima"] := "\\N";
         lat["shortest"] := "\\N";
-        gram := LLLGram(GramMatrix(L));
+        // Trying to reduce the size of the entries in the gram matrix
+        gram0 := GramMatrix(L);
+        gram := LLLGram(gram0);
+        max_abs := Max([Abs(x) : x in Eltseq(gram)]);
+        max_abs_0 := Max([Abs(x) : x in Eltseq(gram0)]);
+        if max_abs_0 le max_abs then
+            gram := gram0;
+        end if;
         lat["gram"] := Eltseq(gram);
         lat["gram_is_canonical"] := false;
         lat["gram_others"] := []; // This will be manually set in cases like E8 where we want to store other options
@@ -207,7 +250,7 @@ intrinsic FillGenus(label::MonStgElt : timeout := 1800)
                 lat["gram"] := Eltseq(canonical_gram);
                 lat["gram_is_canonical"] := true;
             end if;
-            success, aut_group, elapsed := TimeoutCall(to_per_rep, aut_faster, <L>, 1);
+            success, aut_group, elapsed := TimeoutCall(to_per_rep, AutomorphismGroupFaster, <L>, 1);
             vprintf FillGenus, 1 : "Automorphism group computed in %o seconds\n", elapsed;
             if success then 
                 aut_group := aut_group[1];
@@ -235,20 +278,19 @@ intrinsic FillGenus(label::MonStgElt : timeout := 1800)
             lat["dual_kissing"] := KissingNumber(D);
             m := Minimum(L);
             lat["minimum"] := m;
-            prec := Max(150, m+4);
-            lat["theta_prec"] := prec;
-            success, theta_series, elapsed := TimeoutCall(to_per_rep, ThetaSeries, <L, prec-1>, 1);
-            vprintf FillGenus, 1 : "Theta series computed in %o seconds\n", elapsed;
-            if success then 
-                lat["theta_series"] := Eltseq(theta_series[1]);
+            target_prec := Max(150, m+4);
+            theta, theta_prec := ThetaSeriesIncremental(L, target_prec, to_per_rep);
+            if theta_prec gt 0 then
+                lat["theta_series"] := theta;
+                lat["theta_prec"] := theta_prec;
             else
                 lat["theta_series"] := [1];
                 lat["theta_prec"] := 1;
             end if;
-            success, dual_theta_series, elapsed := TimeoutCall(to_per_rep, ThetaSeries, <D, prec-1>, 1);
-            vprintf FillGenus, 1 : "Dual theta series computed in %o seconds\n", elapsed;
-            if success then 
-                lat["dual_theta_series"] := Eltseq(dual_theta_series[1]);
+            dual_theta, dual_theta_prec := ThetaSeriesIncremental(D, target_prec, to_per_rep);
+            if dual_theta_prec gt 0 then
+                lat["dual_theta_series"] := dual_theta;
+                lat["dual_theta_prec"] := dual_theta_prec;
             end if;
             //success, minima, elapsed := TimeoutCall(to_per_rep, SuccessiveMinima, <L>, 2);
             //vprintf FillGenus, 1 : "Successive minima computed in %o seconds\n", elapsed;
@@ -287,8 +329,10 @@ intrinsic FillGenus(label::MonStgElt : timeout := 1800)
     vprintf FillGenus, 1 : "Done!\n";
 
     function cmp_lat(L1, L2)
-        d := L2["aut_size"] - L1["aut_size"];
-        if (d ne 0) then return d; end if;
+        if Type(L1["aut_size"]) eq RngIntElt and Type(L2["aut_size"]) eq RngIntElt then
+            d := L2["aut_size"] - L1["aut_size"];
+            if (d ne 0) then return d; end if;
+        end if;
         if Type(L1["theta_series"]) eq SeqEnum and Type(L2["theta_series"]) eq SeqEnum then
             prec := Minimum(L1["theta_prec"], L2["theta_prec"]);
             for i in [1..prec - 1] do
