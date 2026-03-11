@@ -326,6 +326,11 @@ intrinsic FillGenus(label::MonStgElt : timeout := 1800)
         lats[idx]["label"] := Sprintf("%o.%o", basics["label"], idx);
     end for;
 
+    // Compute theta_distinguishing_prec
+    ZZX := PowerSeriesRing(Integers());
+    thetas := {* elt<ZZX|lat["theta_series"], lat["theta_prec"]> : lat in lats *};
+    prec_needed := 150; // This should really come from the trace bound on the corresponding space of modular forms
+
     for idx->L in lats do
         lat := L;
         if genus_success and (n eq s) then
