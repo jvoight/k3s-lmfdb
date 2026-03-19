@@ -46,7 +46,8 @@ Label: `dimension.signature.determinant.genus_spec.tiebreaker` where
 | [class_number](https://beta.lmfdb.org/knowledge/show/lattice.class_number) | smallint | size of the genus |
 | [density](https://beta.lmfdb.org/knowledge/show/lattice.density) | numeric | density of the lattice centered sphere packing (only for definite lattices) |
 | [center_density](https://beta.lmfdb.org/knowledge/show/lattice.density) | numeric | density of the lattice centered sphere packing (only for definite lattices) |
-| [covering_radius](https://beta.lmfdb.org/knowledge/show/lattice.covering_radius) | numeric | the minimum real number so that balls of this radius around lattice points cover space |
+| [covering_norm](https://beta.lmfdb.org/knowledge/show/lattice.covering_radius) | integer[] | the square of the minimum real number so that balls of this radius around lattice points cover space (stored as numerator and denominator) |
+| deep_hole_count | 
 | [hermite](https://beta.lmfdb.org/knowledge/show/lattice.hermite_number) | numeric | Hermite number (only for definite lattices) |
 | [kissing](https://beta.lmfdb.org/knowledge/show/lattice.kissing) | bigint | kissing number, the number of minimal vectors (only for definite lattices) |
 | shortest | integer[] | orbit representatives for the set of shortest vectors under the action of the automorphism group |
@@ -93,17 +94,16 @@ Label: `dimension.signature.determinant.genus_spec.tiebreaker` where
 | even_complement | text | the label for the orthogonal complement of the even sublattice |
 | norm1_rank | smallint | the rank of the sublattice spanned by vectors of norm 1 |
 | norm1_complement | text | the label for the complement of the norm 1 sublattice |
-| Zn_complement | text | the orthogonal complement of the maximal sublattice whose Gram matrix is diagonal |
 | successive_minima | integer[] | the sequence of successive minima, of length equal to the rank |
 | scale | integer | the gcd of the entries of the Gram matrix |
 | is_well_rounded | boolean | whether the minimal vectors span a finite index sublattice |
 | is_minimal_vector_generated | boolean | whether the minimal vectors span the lattice |
 | is_strongly_well_rounded | boolean | whether the minimal vectors contain a basis for the lattice |
 | is_eutactic | boolean | whether the norm can be written as a positive combination of squared pairings with all of the minimal vectors |
-| is_strongly_eutactic | boolean | whether the norm can be written as a multiple of the sum of squared pairings with all of the minimal vectors |
 | is_perfect | boolean | whether the space of real symmetric matrices is spanned by rank one matrices derived from the minimal vectors of the lattice |
 | perfection_defect | smallint | the difference between n(n+1)/2 and the dimension of the space spanned by rank one matrices derived from the minimal vectors of the lattice |
 | is_algebraic | boolean | Whether this lattice embeds in a number field, with pairing induced from the trace pairing |
 | primitive_scaling | text | the label of the primitive lattice that is similar to this one (null if this lattice is already primitive) |
 | t_design | smallint | the largest even integer t such that S is a spherical t-design (sum_{s in S} (x.s)^t = C * x.x^(t/2) for some C, which must be (min(L) #S)/n).  See Venkov's paper "reseaux et designs spheriques" |
 | is_chiral | boolean | whether the automorphism group is contained in SO(n) |
+| hash | bigint | the value of the genus-specific hash function on this lattice |

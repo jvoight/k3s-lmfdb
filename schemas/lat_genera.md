@@ -35,3 +35,4 @@ This table stores lattices (free Z-modules with a nondegenerate symmetric inner 
 | ambient_lattice | text | if provided, lattices in this genus are stored as the orthogonal complement of one or more vectors in the lattice with this label.  This may be instead of or in addition to storing a Gram matrix |
 | scale | integer | the gcd of the entries of the Gram matrix for any lattice in this genus |
 | rep | integer[] | a Gram matrix for a lattice within this genus.  Not stored if the lattices in this genus are all in lat_lattices |
+| genus_hash | bigint | a hash value that can be easily computed from a lattice in this genus (should be collision-free) |

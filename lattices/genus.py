@@ -749,7 +749,7 @@ COL_TYPE_LATTICE = {'det_abs': 'bigint',
  'shortest': 'integer[]'}
 
 FIELDS_LATTICE_GENUS = ["genera_basic.format", "genera_advanced.format"]
-FIELDS_LATTICE = ["lat.format"]
+FIELDS_LATTICE = ["lat_basic.format", "lat_advanced.format"]
 
 def write_header_to_file(fname, sep = "|", col_type=COL_TYPE_LATTICE_GENUS, fields=FIELDS_LATTICE_GENUS):
     # we want to have a well defined order, matching the entries
