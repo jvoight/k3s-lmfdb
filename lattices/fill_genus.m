@@ -122,6 +122,7 @@ intrinsic FillGenus(label::MonStgElt : timeout := 1800)
     data := Split(Split(Read("genera_basic/" * label), "\n")[1], "|");
     basic_format := Split(Read("genera_basic.format"), "|");
     advanced_format := Split(Read("genera_advanced.format"), "|");
+    hash_format := Split(Read("lat_hash.format"), "|");
     // This function only fills in basic lattice entries (essentially those that don't require interactions between different genera)
     lat_format := Split(Split(Read("lat_basic.format"), "\n")[1], "|");
     assert #data eq #basic_format;
@@ -323,7 +324,7 @@ intrinsic FillGenus(label::MonStgElt : timeout := 1800)
     end function;
 
     // Tie breaker
-      
+
     // Need dual_label, dual_conway
     // Compute festi_veniani_index in Sage?
     // Need label for lattice.  Don't want the label to rely on a difficult computation.  So we should probably avoid using the canonical form, and maybe avoid the automorphism group.
@@ -364,8 +365,13 @@ intrinsic FillGenus(label::MonStgElt : timeout := 1800)
         Remove(~lat, "lattice");
         error if Keys(lat) ne Set(lat_format), [k : k in lat_format | k notin Keys(lat)], [k : k in Keys(lat) | k notin lat_format];
         output := Join([Sprintf("%o", to_postgres(lat[k])) : k in lat_format], "|");
-        Write("lattice_data/" * lat["label"], output : Overwrite);
+        Write("lattice_basic_data/" * lat["label"], output : Overwrite);
+
     end for;
+    // Now write hash data
+    output := Join([Join([Sprintf("%o", to_postgres(lat[k])) : k in hash_format], "|") : lat in lats], "\n");
+    Write("lattice_hashes/" * advanced["genus_hash"], output : Overwrite);
+
     error if Keys(basics) ne Set(basic_format), [k : k in basic_format | k notin Keys(basics)], [k : k in Keys(basics) | k notin basic_format];
     error if Keys(advanced) ne Set(advanced_format), [k : k in advanced_format | k notin Keys(advanced)], [k : k in Keys(advanced) | k notin advanced_format];
     output := Join([basics[k] : k in basic_format] cat [Sprintf("%o", advanced[k]) : k in advanced_format], "|");

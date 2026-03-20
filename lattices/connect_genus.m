@@ -182,6 +182,8 @@ end intrinsic;
 
 intrinsic ConnectGenus(label::MonStgElt : timeout := 1800)
 {Fill in lattice data that requires working with lattices in different genera}
+    SetColumns(0);
+    advanced_format := Split(Split(Read("lat_advanced.format"), "\n")[1], "|");
     genus := load_genus_data(label);
     n := StringToInteger(genus["rank"]);
     s := StringToInteger(genus["nplus"]);
@@ -191,7 +193,8 @@ intrinsic ConnectGenus(label::MonStgElt : timeout := 1800)
         to_per_rep := timeout div #lats + 1;
     end if;
 
-    for lat in lats do
+    for i in [1..#lats] do
+        lat := lats[i];
         L := GramStringToLat(lat["gram"], n);
         D := Dual(L);
         m := Minimum(D);
@@ -317,5 +320,11 @@ intrinsic ConnectGenus(label::MonStgElt : timeout := 1800)
         end if;
 
         lat["is_algebraic"] := "\\N"; // TODO
+
+        // Remove gram since it's not in lat_advanced.format
+        Remove(~lat, "gram");
+        error if Keys(lat) ne Set(advanced_format), [k : k in advanced_format | k notin Keys(lat)], [k : k in Keys(lat) | k notin advanced_format];
+        output := Join([Sprintf("%o", to_postgres(lat[k])) : k in advanced_format], "|");
+        Write("lattice_advanced_data/" * lat["label"], output : Overwrite);
     end for;
 end intrinsic;
