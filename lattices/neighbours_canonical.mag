@@ -211,12 +211,12 @@ import "neighbours_canonical.mag":root_sub,easy_hash;
 
 bd := Infinity(); p := 2; done := {@@}; silent := false; aut_gp_fn := AutomorphismGroupFaster; nb_fn := newNeighbours; cf_fn := func<x|CanonicalForm(GramMatrix(x))>; hash := easy_hash; use_aut_graph := true; find_canonical := false;
 */
-function list_genus(pd: bd := Infinity(), p := 2, done := {@@}, silent := false, aut_gp_fn := AutomorphismGroupFaster, nb_fn := newNeighbours, cf_fn := func<x|CanonicalForm(GramMatrix(x))>, use_aut_graph := true, hash := easy_hash, thorough := true, find_canonical := false)
+function list_genus(pd: bd := Infinity(), p := 2, done := {@@}, silent := false, aut_gp_fn := AutomorphismGroupFaster, nb_fn := newNeighbours, cf_fn := func<x|CanonicalForm(GramMatrix(x))>, use_aut_graph := true, hash := easy_hash, thorough := true, find_canonical := false, mass_left := Mass(pd))
   if Rank(pd) eq 2 and p eq 2 and IsEven(Determinant(pd)) then
-    "warning: cannot run for lattices of rank 2 with even determinant for p = 2";
+    vprintf Genus, 1 : "Cannot run for lattices of rank 2 with even determinant for p = 2\n";
     return {@pd@},[],[],1;
   elif IsEven(Determinant(pd)) and not IsEven(pd) and p eq 2 then
-    "warning: cannot run for odd lattices with even determinant for p = 2";
+    vprintf Genus, 1 : "Cannot run for odd lattices with even determinant for p = 2\n";
     return {@pd@},[],[],1;
   end if;
   
@@ -224,10 +224,10 @@ function list_genus(pd: bd := Infinity(), p := 2, done := {@@}, silent := false,
   g := Genus(pd);
   mass := Mass(pd);
   // should probably be indexed sets, but I doubt that takes most of the time
-  hashed := []; unhashed := [pd]; 
+  hashed := []; unhashed := IsEmpty(done) select [pd] else [x : x in done]; 
   rss := [];
   cp := Cputime(); ct := 0;
-  mass_left := mass;
+  // mass_left := mass;
   hashes := []; // hashes of the hashed lattices that may not be new
   done_hashes := [hash(i): i in done];
   known_hashes := {@x: x in done_hashes@}; // hashes of the known lattices
@@ -258,6 +258,10 @@ function list_genus(pd: bd := Infinity(), p := 2, done := {@@}, silent := false,
         if not silent then <<a,b,c> where a,b,c is root_sub(lat),RealField(5)!(mass_left/mass), #lat`AutomorphismGroup>; end if;
         Include(~known_hashes,h);
         Append(~hashed_inds,[]);
+        nbs := [LatticeWithGram(GramMatrix(x)): x in nb_fn(lat,p)];
+        nbs := [x: x in nbs|x notin hashed and x notin done and x notin unhashed];
+        unhashed cat:= nbs;
+      elif h in done_hashes then
         nbs := [LatticeWithGram(GramMatrix(x)): x in nb_fn(lat,p)];
         nbs := [x: x in nbs|x notin hashed and x notin done and x notin unhashed];
         unhashed cat:= nbs;
@@ -344,7 +348,7 @@ function list_genus(pd: bd := Infinity(), p := 2, done := {@@}, silent := false,
 
   error if mass_left lt 0, "exhausted more mass than exists";
   if mass_left gt 0 then
-    printf "warning: failed to exhaust the genus with p = %o; try again with larger p\n", p;
+    vprintf Genus, 1 : "Failed to exhaust the genus with p = %o; try again with larger p\n", p;
   end if;
   return done, done_hashes, use_aut_graph select aut_graphs else can_forms, mass_left;
 end function;
@@ -352,14 +356,15 @@ end function;
 intrinsic GenusRepresentativesFaster(pd::Lat : bd := Infinity(), p := 2, done := {@@}, silent := true, aut_gp_fn := AutomorphismGroupFaster, nb_fn := newNeighbours, cf_fn := func<x|CanonicalForm(GramMatrix(x))>, use_aut_graph := true, hash := easy_hash, thorough := true, find_canonical := false) -> SeqEnum, SeqEnum, SeqEnum, FldRatElt
 {Find the representatives of the genus of the lattice pd.}
     if (IsEven(Determinant(pd)) and not IsEven(pd)) and (p eq 2) then p := 3; end if;
-    mass_left := Infinity();
+    mass_left := Mass(pd);
     while (mass_left gt 0) do
-      // tried starting eith the list we already have, but this doesn't seem to work
-      reps, done_hashes, cans, mass_left := list_genus(pd: bd := bd, p := p, done := done, silent := silent, aut_gp_fn := aut_gp_fn, nb_fn := nb_fn, cf_fn := cf_fn, use_aut_graph := use_aut_graph, hash := hash, thorough := thorough, find_canonical := find_canonical);
-      vprintf Genus, 1: "p = %o, #reps = %o, mass_left = %o\n", p, #reps, RealField(10)!mass_left; 
+      // This could be done better, where at each step we can reuse the hashes we already found, 
+      // but at the moment could not make it work, so just updating the mass_left each time.
+      done, done_hashes, cans, mass_left := list_genus(pd: bd := bd, p := p, done := done, silent := silent, aut_gp_fn := aut_gp_fn, nb_fn := nb_fn, cf_fn := cf_fn, use_aut_graph := use_aut_graph, hash := hash, thorough := thorough, find_canonical := find_canonical, mass_left := mass_left);
+      vprintf Genus, 1: "p = %o, #reps = %o, mass_left = %o\n", p, #done, RealField(10)!mass_left; 
       p := NextPrime(p);
     end while;
-    return reps, done_hashes, cans, mass_left;
+    return done, done_hashes, cans, mass_left;
 end intrinsic;
 
 // this function now merged with list_genus
