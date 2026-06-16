@@ -17,4 +17,9 @@
     {
         +spec
     }
+
+    lattools
+    {
+        alt/bv.m
+    }
 }
