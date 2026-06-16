@@ -152,7 +152,7 @@ intrinsic FillGenus(label::MonStgElt : timeout := 1800)
         d := Determinant(L0);
         if IsSquare(-d) then 
             // At the moment, we don't do anything in this case.
-            // I think this is always class number 1, but TODO: check!
+            // I think this is always class number 1, but TODO (Eran): check!
             genus_success := false;
         end if; 
     end if;
@@ -210,7 +210,7 @@ intrinsic FillGenus(label::MonStgElt : timeout := 1800)
         end for;
         lat["genus_label"] := basics["label"];
         lat["class_number"] := advanced["class_number"];
-        // TODO := The code for ConwaySymbol is currently in sage.
+        // TODO (Eran) := The code for ConwaySymbol is currently in sage.
         // The magma implemntation is in version 2.29 that has some bugs
         // This is no longer part of the lattice, only of the genus
         // lat["dual_conway"] := "\\N";
@@ -239,27 +239,25 @@ intrinsic FillGenus(label::MonStgElt : timeout := 1800)
         lat["gram_is_canonical"] := false;
         lat["gram_others"] := []; // This will be manually set in cases like E8 where we want to store other options
         // At the moment we do not have a notion of a canonical gram in the indefinite case
-        // !!!  TODO - Need to be able to compute some things for indefinite lattices
-        if (n eq s) then 
-            // TODO : This is lossy - change later
+        if (n eq s) then
             vprintf FillGenus, 1 : "%o", gram;
             success, canonical_gram, elapsed := TimeoutCall(to_per_rep, CanonicalForm, <gram>, 1);
             vprintf FillGenus, 1 : "Canonical form computed in %o seconds\n", elapsed;
-            if success then 
+            if success then
                 canonical_gram := canonical_gram[1];
                 lat["gram"] := Eltseq(canonical_gram);
                 lat["gram_is_canonical"] := true;
             end if;
             success, aut_group, elapsed := TimeoutCall(to_per_rep, AutomorphismGroupFaster, <L>, 1);
             vprintf FillGenus, 1 : "Automorphism group computed in %o seconds\n", elapsed;
-            if success then 
+            if success then
                 aut_group := aut_group[1];
                 lat["aut_group"] := GroupToString(aut_group : use_id:=false);
                 lat["aut_size"] := #aut_group;
                 lat["is_chiral"] := &and[Determinant(g) eq 1 : g in Generators(aut_group)];
                 // double checking, but also useful for festi-veniani
                 LD := Dual(L : Rescale:=false);
-                discL, quo := LD/L; 
+                discL, quo := LD/L;
                 disc_aut := AutomorphismGroup(discL);
                 assert disc_aut_size eq #disc_aut;
                 assert disc_invs eq Invariants(discL);
@@ -330,12 +328,11 @@ intrinsic FillGenus(label::MonStgElt : timeout := 1800)
     // Need label for lattice.  Don't want the label to rely on a difficult computation.  So we should probably avoid using the canonical form, and maybe avoid the automorphism group.
     // Proposal: Sort lexicographically by:
     // 1. Size of automorphism group (larger first): unfortunately this may be hard to compute
-    // 2. Density
+    // 2. Density - sort by minimum instead
     // 3. theta series
     // 4. dual theta series
     // 5. arbitrary tiebreaker
     // TODO: Sort reps according to canonical form?
-    // perm := [1..#lats];
     if (n eq s) then
         Sort(~lats, cmp_lat, ~perm);
     end if;
