@@ -1,5 +1,5 @@
 {
-    aut-char.mag
+    aut_char.mag
     canonical_form.m
     hash.m
     fill_genus.m
