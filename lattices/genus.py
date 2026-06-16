@@ -1,7 +1,7 @@
 import os
 from functools import reduce
 
-from sage.arith.misc import kronecker, prime_divisors # type: ignore
+from sage.arith.misc import kronecker, prime_divisors, gcd # type: ignore
 from sage.combinat.integer_vector_weighted import WeightedIntegerVectors # type: ignore
 from sage.interfaces.magma import magma # type: ignore
 from sage.matrix.constructor import matrix # type: ignore
@@ -15,6 +15,7 @@ from sage.quadratic_forms.genera.genus import (
 ) # type: ignore
 from sage.quadratic_forms.genera.genus import GenusSymbol_global_ring # type: ignore
 from sage.rings.integer_ring import ZZ # type: ignore
+from sage.rings.real_mpfr import RR # type: ignore
 
 def get_product(set_list):
     '''
@@ -238,7 +239,7 @@ def create_genus_label(genus_sym):
     Returns a string which is the LMFDB label of the genus symbol.
     Label is in the format r.s.d.j_1.j_2....j_k.x, where 
     r is the rank of the lattices
-    s is the signature (n_plus - n_minus)
+    s is n_plus
     d is the absolute value of the determinant
     If p_1, ... , p_k are the primes whose squares divide d (p_i^2 | d), then
     j_1,...,j_k are corresponding rank decompositions of their Jordan forms, omitting the first, encoded in base 62
@@ -587,16 +588,25 @@ def create_genus_entry(genus_symbol):
     table_row = {}
     table_row['label'] = create_genus_label(genus_symbol)
     table_row['rank'] = rank = genus_symbol.rank()
-    table_row['nplus'] = genus_symbol.signature_pair()[0]
-    table_row['det'] = genus_symbol.determinant()
-    table_row['disc'] = table_row['det']
-    if (genus_symbol.is_even() and genus_symbol.rank() % 2 == 1):
-        table_row['disc'] //= 2
+    table_row['nplus'], table_row['nminus'] = genus_symbol.signature_pair()
+    disc = genus_symbol.determinant()
+    table_row['disc_abs'] = abs(disc)
+    table_row['disc_sign'] = disc.sign()
+    table_row['bad_primes'] = disc.prime_divisors()
+    table_row['disc_radical'] = prod(table_row['bad_primes'])
+    table_row['disc_witt'] = (-1)**(rank*(rank-1)//2) * disc
+    table_row['disc_geometric'] = RR(abs(disc)).sqrt()
+    table_row['disc_quadratic'] = RR(disc) / 2**rank
+    table_row['disc_half'] = table_row['disc_quadratic']
+    if genus_symbol.is_even() and rank % 2 == 1:
+        table_row['disc_half'] /= 2
+    table_row['disc_2adic_unit'] = disc.val_unit(2)[1] % 8
     table_row['conway_symbol'] = conway_symbol(genus_symbol)
     table_row['level'] = level = genus_symbol.level()
     table_row['is_even'] = genus_symbol.is_even()
     disc_form = genus_symbol.discriminant_form() # Timing: this was slow
     table_row['discriminant_group_invs'] = disc_form.invariants()
+    table_row['discriminant_group_exponent'] = table_row['discriminant_group_invs'][-1]
     disc_q = disc_form.gram_matrix_quadratic()
     den = disc_q.denominator()
     table_row['discriminant_form'] = (den*disc_q).list()
@@ -608,6 +618,7 @@ def create_genus_entry(genus_symbol):
     # We store a representative for use by the magma code
     rep = genus_symbol.representative()
     table_row['rep'] = rep.list() # Timing: this was slow
+    table_row['scale'] = gcd(table_row['rep'])
     dual = rep**(-1)
     dual = (dual.denominator() * dual).change_ring(ZZ)
     ddet = dual.det()
@@ -623,7 +634,7 @@ def create_genus_entry(genus_symbol):
     return table_row
 
 def create_lattice_entry(gram):
-    # Basic invs (rank, signature, det, disc, class_number, discriminant_group_invs, is_even)
+    # Basic invs (rank, nplus, det, disc, class_number, discriminant_group_invs, is_even)
     # Gram (gram, canonical_gram)
     # Labels (genus_label, label, name, conway_symbol)
     # Dual (dual_label, dual_theta_series, dual_hermite, dual_kissing, dual_density, dual_det, dual_conway)
@@ -739,7 +750,7 @@ COL_TYPE_LATTICE = {'det_abs': 'bigint',
  'shortest': 'integer[]'}
 
 FIELDS_LATTICE_GENUS = ["genera_basic.format", "genera_advanced.format"]
-FIELDS_LATTICE = ["lat.format"]
+FIELDS_LATTICE = ["lat_basic.format", "lat_advanced.format"]
 
 def write_header_to_file(fname, sep = "|", col_type=COL_TYPE_LATTICE_GENUS, fields=FIELDS_LATTICE_GENUS):
     # we want to have a well defined order, matching the entries
@@ -883,7 +894,7 @@ def jordan_condition(genus_symbol):
             if (d in [1,7]) and (o not in [0,4,6]):
                 return False
             if (d in [3,5]) and (o not in [2,4,6]):
-                return False    
+                return False
         if (n > 2):
             if ((o - n) % 2 != 0):
                 return False

@@ -106,12 +106,25 @@ function genus_reps_Logan(L)
     return Setseq(neighbours(L : thorough));
 end function;
 
+function SphereVolume(n)
+    RR := RealField();
+    pi := Pi(RR);
+    m := n div 2;
+    if IsEven(n) then
+        return pi^m / Factorial(m);
+    else
+        return 2^n * pi^m * Factorial(m) / Factorial(n);
+    end if;
+end function;
+
 intrinsic FillGenus(label::MonStgElt : timeout := 1800)
 {Fill the data for a genus and its lattice representatives, given files in the genera_basic format.}
     data := Split(Split(Read("genera_basic/" * label), "\n")[1], "|");
     basic_format := Split(Read("genera_basic.format"), "|");
     advanced_format := Split(Read("genera_advanced.format"), "|");
-    lat_format := Split(Split(Read("lat.format"), "\n")[1], "|");
+    hash_format := Split(Read("lat_hash.format"), "|");
+    // This function only fills in basic lattice entries (essentially those that don't require interactions between different genera)
+    lat_format := Split(Split(Read("lat_basic.format"), "\n")[1], "|");
     assert #data eq #basic_format;
     basics := AssociativeArray();
     for i in [1..#data] do
@@ -123,10 +136,9 @@ intrinsic FillGenus(label::MonStgElt : timeout := 1800)
 
     n := StringToInteger(basics["rank"]);
     s := StringToInteger(basics["nplus"]);
-    as_num := (s * (n - s) ne 0);
     K := Rationals();
     LWG := LatticeWithGram;
-    DualLat := Dual; 
+    DualLat := Dual;
     rep := basics["rep"];
     // Switch to square brackets
     rep := "[" * rep[2..#rep - 1] * "]"; // Switch to square brackets
@@ -140,7 +152,7 @@ intrinsic FillGenus(label::MonStgElt : timeout := 1800)
         d := Determinant(L0);
         if IsSquare(-d) then 
             // At the moment, we don't do anything in this case.
-            // I think this is always class number 1, but check!
+            // I think this is always class number 1, but TODO: check!
             genus_success := false;
         end if; 
     end if;
@@ -180,7 +192,7 @@ intrinsic FillGenus(label::MonStgElt : timeout := 1800)
     disc_invs := basics["discriminant_group_invs"];
     disc_invs := "[" * disc_invs[2..#disc_invs-1] * "]"; // Switch to square brackets
     disc_invs := eval disc_invs;
-    disc_aut_size := #AutomorphismGroup(AbelianGroup(disc_invs)); 
+    disc_aut_size := #AutomorphismGroup(AbelianGroup(disc_invs));
 
     if (n eq s) then
         vprintf FillGenus, 1 : "Computing canonical forms and automorphism groups for representative ";
@@ -192,21 +204,13 @@ intrinsic FillGenus(label::MonStgElt : timeout := 1800)
 
     for Li->L in reps do
         lat := AssociativeArray();
-        for col in ["rank", "nplus", "det", "disc", "discriminant_group_invs", "is_even"] do
+        lat["lattice"] := L; // useful for subroutines; removed before saving to disk
+        for col in ["rank", "nplus", "nminus", "disc_abs", "disc_sign", "disc_radical", "disc_witt", "disc_geometric", "disc_quadratic", "disc_half", "disc_2adic_unit", "bad_primes", "discriminant_group_invs", "discriminant_group_exponent", "is_even", "level", "scale", "conway_symbol", "dual_conway_symbol"] do
             lat[col] := basics[col];
         end for;
-        det := StringToInteger(lat["det"]);
-        Remove(~lat, "det");
-        lat["det_abs"] := Abs(det);
-        lat["det_sign"] := Sign(det);
-        lat["det_radical"] := &*PrimeDivisors(det);
         lat["genus_label"] := basics["label"];
         lat["class_number"] := advanced["class_number"];
-        D := DualLat(L);
-        lat["dual_det"] := Determinant(D);
-        // At the moment we do not know the label for the dual
-        lat["dual_label"] := "\\N";
-        // TODO := The code for ConwaySymbol is currently in sage. 
+        // TODO := The code for ConwaySymbol is currently in sage.
         // The magma implemntation is in version 2.29 that has some bugs
         // This is no longer part of the lattice, only of the genus
         // lat["dual_conway"] := "\\N";
@@ -214,19 +218,15 @@ intrinsic FillGenus(label::MonStgElt : timeout := 1800)
         lat["festi_veniani_index"] := "\\N";
         lat["aut_label"] := "\\N";
         lat["aut_group"] := "\\N";
+        lat["is_chiral"] := "\\N";
+        lat["orthogonal_complement"] := "\\N";
         lat["density"] := "\\N";
-        lat["dual_density"] := "\\N";
         lat["hermite"] := "\\N";
-        lat["dual_hermite"] := "\\N";
         lat["kissing"] := "\\N";
-        lat["dual_kissing"] := "\\N";
         lat["minimum"] := "\\N";
         lat["theta_series"] := "\\N";
         lat["theta_prec"] := "\\N";
-        lat["dual_theta_series"] := "\\N";
-        lat["dual_theta_prec"] := "\\N";
         lat["successive_minima"] := "\\N";
-        lat["shortest"] := "\\N";
         // Trying to reduce the size of the entries in the gram matrix
         gram0 := GramMatrix(L);
         gram := LLLGram(gram0);
@@ -256,6 +256,7 @@ intrinsic FillGenus(label::MonStgElt : timeout := 1800)
                 aut_group := aut_group[1];
                 lat["aut_group"] := GroupToString(aut_group : use_id:=false);
                 lat["aut_size"] := #aut_group;
+                lat["is_chiral"] := &and[Determinant(g) eq 1 : g in Generators(aut_group)];
                 // double checking, but also useful for festi-veniani
                 LD := Dual(L : Rescale:=false);
                 discL, quo := LD/L; 
@@ -271,11 +272,9 @@ intrinsic FillGenus(label::MonStgElt : timeout := 1800)
                 end if;
             end if;
             lat["density"] := Density(L);
-            lat["dual_density"] := Density(D);
+            lat["center_density"] := lat["density"] / SphereVolume(n);
             lat["hermite"] := HermiteNumber(L);
-            lat["dual_hermite"] := HermiteNumber(D);
             lat["kissing"] := KissingNumber(L);
-            lat["dual_kissing"] := KissingNumber(D);
             m := Minimum(L);
             lat["minimum"] := m;
             target_prec := Max(150, m+4);
@@ -287,11 +286,6 @@ intrinsic FillGenus(label::MonStgElt : timeout := 1800)
                 lat["theta_series"] := [1];
                 lat["theta_prec"] := 1;
             end if;
-            dual_theta, dual_theta_prec := ThetaSeriesIncremental(D, target_prec, to_per_rep);
-            if dual_theta_prec gt 0 then
-                lat["dual_theta_series"] := dual_theta;
-                lat["dual_theta_prec"] := dual_theta_prec;
-            end if;
             //success, minima, elapsed := TimeoutCall(to_per_rep, SuccessiveMinima, <L>, 2);
             //vprintf FillGenus, 1 : "Successive minima computed in %o seconds\n", elapsed;
             //if success then 
@@ -299,30 +293,12 @@ intrinsic FillGenus(label::MonStgElt : timeout := 1800)
             //end if;
             minima, vecs := SuccessiveMinima(L);
             lat["successive_minima"] := minima;
+
         end if;
-        lat["dual_label"] := "\\N"; // set in next stage
-        lat["is_indecomposable"] := "\\N"; // set in next stage
-        lat["is_additively_indecomposable"] := "\\N"; // set in next stage
-        lat["orthogonal_factors"] := "\\N"; // set in next stage
-        lat["orthogonal_multiplicities"] := "\\N"; // set in next stage
-        lat["tensor_decompositions"] := "\\N"; // set in next stage
-        lat["is_tensor_product"] := "\\N"; // set in next stage
-        lat["root_sublattice"] := "\\N"; // set in next stage
-        lat["root_complement"] := "\\N"; // set in next stage
-        lat["even_sublattice"] := "\\N"; // set in next stage
-        lat["even_complement"] := "\\N"; // set in next stage
-        lat["norm1_sublattice"] := "\\N"; // set in next stage
-        lat["norm1_complement"] := "\\N"; // set in next stage
-        lat["Zn_complement"] := "\\N"; // set in next stage
-        lat["name"] := "\\N"; // set in next stage
+        lat["hash"] := "\\N";
 
-        lat["level"] := Level(LatticeWithGram(ChangeRing(GramMatrix(L), Integers()) : CheckPositive:=false));
+        //lat["level"] := Level(LatticeWithGram(ChangeRing(GramMatrix(L), Integers()) : CheckPositive:=false));
 
-        // TODO - do we also need these? or should we only keep them for the genus?
-        lat["genus_label"] := basics["label"];
-        lat["conway_symbol"] := basics["conway_symbol"];
-        // This is only saved for the genus ?!
-        // lat["dual_conway_symbol"] := basics["dual_conway_symbol"];
         Append(~lats, lat);
     end for;
 
@@ -348,7 +324,7 @@ intrinsic FillGenus(label::MonStgElt : timeout := 1800)
     end function;
 
     // Tie breaker
-      
+
     // Need dual_label, dual_conway
     // Compute festi_veniani_index in Sage?
     // Need label for lattice.  Don't want the label to rely on a difficult computation.  So we should probably avoid using the canonical form, and maybe avoid the automorphism group.
@@ -370,6 +346,10 @@ intrinsic FillGenus(label::MonStgElt : timeout := 1800)
         lats[idx]["label"] := Sprintf("%o.%o", basics["label"], idx);
     end for;
 
+    SetHashes(~lats, ~advanced, theta_elapsed, timeout);
+
+    // TODO: Compute ambient_lattice
+
     for idx->L in lats do
         lat := L;
         if genus_success and (n eq s) then
@@ -382,11 +362,16 @@ intrinsic FillGenus(label::MonStgElt : timeout := 1800)
         else
             lat["pneighbors"] := "\\N";
         end if;
-        // Remove(~lat, "theta_prec");
+        Remove(~lat, "lattice");
         error if Keys(lat) ne Set(lat_format), [k : k in lat_format | k notin Keys(lat)], [k : k in Keys(lat) | k notin lat_format];
         output := Join([Sprintf("%o", to_postgres(lat[k])) : k in lat_format], "|");
-        Write("lattice_data/" * lat["label"], output : Overwrite);
+        Write("lattice_basic_data/" * lat["label"], output : Overwrite);
+
     end for;
+    // Now write hash data
+    output := Join([Join([Sprintf("%o", to_postgres(lat[k])) : k in hash_format], "|") : lat in lats], "\n");
+    Write("lattice_hashes/" * advanced["genus_hash"], output : Overwrite);
+
     error if Keys(basics) ne Set(basic_format), [k : k in basic_format | k notin Keys(basics)], [k : k in Keys(basics) | k notin basic_format];
     error if Keys(advanced) ne Set(advanced_format), [k : k in advanced_format | k notin Keys(advanced)], [k : k in Keys(advanced) | k notin advanced_format];
     output := Join([basics[k] : k in basic_format] cat [Sprintf("%o", advanced[k]) : k in advanced_format], "|");
