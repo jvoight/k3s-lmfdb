@@ -78,7 +78,7 @@ intrinsic SetHashes(~lats::SeqEnum[Assoc], ~genus::Assoc, theta_elapsed::Assoc, 
         for i in [1..#lats] do
             lats[i]["hash"] := "\\N";
         end for;
-        return; // TODO: Can we return from a procudure?
+        return;
     end if;
     level := lats[1]["level"];
 
