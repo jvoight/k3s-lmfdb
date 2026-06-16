@@ -271,7 +271,8 @@ def create_genus_label(genus_sym):
     '8.8.15876000.00001.0001.001.01.a267'
     '''
     rk = genus_sym.rank()
-    sig = genus_sym.signature()
+    sig = genus_sym.signature() # the difference n_+ - n_-
+    nplus = (rk + sig) // 2
     det = abs(genus_sym.determinant())
     primes = (2*det).prime_divisors()
     local_symbols = [genus_sym.local_symbol(p).symbol_tuple_list() for p in primes]
@@ -316,7 +317,7 @@ def create_genus_label(genus_sym):
         bits += [ZZ(1-s) // 2 for s in signs]
         
     local_data = sum([bits[i] << i for i in range(len(bits))])
-    label = ".".join([str(x) for x in [rk,sig,det] + jordan_ranks + [hex(local_data)[2:]]])
+    label = ".".join([str(x) for x in [rk,nplus,det] + jordan_ranks + [hex(local_data)[2:]]])
     return label
 
 def decode_rank(c):

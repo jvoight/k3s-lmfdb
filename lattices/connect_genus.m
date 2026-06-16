@@ -123,7 +123,7 @@ end intrinsic;
 intrinsic LatSortKey(label::MonStgElt) -> Tup
 {A tuple that sorts how we want lattices to sort}
     pieces := Split(label, ".");
-    // TODO : Do we want to sort positive definite first?
+    // Sort by: rank, then signature (pos def first), then absolute det, then the label string as tiebreaker
     return <StringToInteger(pieces[1]), -StringToInteger(pieces[2]), StringToInteger(pieces[3]), label>;
 end intrinsic;
 
