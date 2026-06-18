@@ -277,9 +277,36 @@ intrinsic FillGenus(label::MonStgElt : timeout := 1800)
             lat["minimum"] := m;
             target_prec := Max(150, m+4);
             theta, theta_prec := ThetaSeriesIncremental(L, target_prec, to_per_rep);
+            lat["is_universal"] := "\\N";
+            lat["is_even_universal"] := "\\N";
             if theta_prec gt 0 then
                 lat["theta_series"] := theta;
                 lat["theta_prec"] := theta_prec;
+                if lat["is_even"] then
+                    lat["is_universal"] := false;
+                    lat["is_even_universal"] := "\\N";
+                    // 15 theorem
+                    for m in [2..Min(30,#theta-1) by 2] do
+                        if theta[m+1] eq 0 then
+                            lat["is_even_universal"] := false;
+                            break;
+                        end if;
+                    end for;
+                    if lat["is_even_universal"] cmpeq "\\N" and #theta ge 31 then
+                        lat["is_even_universal"] := true;
+                    end if;
+                else
+                    // 290 theorem
+                    for m in [1..Min(290,#theta-1)] do
+                        if theta[m+1] eq 0 then
+                            lat["is_universal"] := false;
+                            break;
+                        end if;
+                    end for;
+                    if lat["is_universal"] cmpeq "\\N" and #theta ge 291 then
+                        lat["is_universal"] := true;
+                    end if;
+                end if;
             else
                 lat["theta_series"] := [1];
                 lat["theta_prec"] := 1;
@@ -344,6 +371,10 @@ intrinsic FillGenus(label::MonStgElt : timeout := 1800)
     end for;
 
     SetHashes(~lats, ~advanced, theta_elapsed, timeout);
+    // We need to be able to look up hash functions for lattices that are not in the main
+    // genus being processed.  So we write the hash function used to a separate file
+    // so that it can be looked up when needed (see lookup_hash_function in connect_genus.m)
+    Write(Sprintf("genera_hash/%o", genus_hash), advanced["hash_function"] : Overwrite);
 
     // TODO: Compute ambient_lattice
 
