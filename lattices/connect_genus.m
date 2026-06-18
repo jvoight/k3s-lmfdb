@@ -151,7 +151,7 @@ end intrinsic;
 
 intrinsic IsWellRounded(L::Lat, S::SeqEnum) -> BoolElt
 {Given the sequence of shortest vectors in a lattice, test if the lattice is well rounded (ie the rank of their span is equal to the rank of the lattice)}
-    return "\\N"; // TODO
+    return Rank(sub<L | S>) eq Rank(L);
 end intrinsic;
 
 intrinsic IsStronglyWellRounded(L::Lat, S::SeqEnum) -> BoolElt
