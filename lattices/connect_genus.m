@@ -156,7 +156,7 @@ end intrinsic;
 
 intrinsic IsStronglyWellRounded(L::Lat, S::SeqEnum) -> BoolElt
 {Given the sequence of shortest vectors in a lattice, test if it contains a basis for the lattice}
-    return "\\N"; // TODO
+    return sub<L | S> eq L;
 end intrinsic;
 
 intrinsic IsMinimalVectorGenerated(L::Lat, S::SeqEnum) -> BoolElt
