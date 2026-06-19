@@ -91,6 +91,45 @@ Expect("non-eutactic WR", IsEutactic(Leu, ShortestVectors(Leu)), false);
 Lnw := LatticeWithGram(DiagonalMatrix(Rationals(),[1,2,3]));
 Expect("non-WR not eutactic", IsEutactic(Lnw, ShortestVectors(Lnw)), false);
 
+// ---------------------------------------------------------------------------
+// IsAdditivelyDecomposableByRankOne: a sufficient (not complete) decomposability
+// test.  "true" certifies additive decomposability; "false" is inconclusive.
+// ---------------------------------------------------------------------------
+print "IsAdditivelyDecomposableByRankOne (sufficient only):";
+// Root lattices / Z^n have dual vectors of norm <= 1 -> certified decomposable.
+for tup in [* <"A1", Lattice("A",1)>, <"A2", Lattice("A",2)>, <"A3", Lattice("A",3)>,
+              <"D4", Lattice("D",4)>, <"Z3", StandardLattice(3)> *] do
+    Expect(tup[1] cat " rank-1-decomposable", IsAdditivelyDecomposableByRankOne(tup[2]), true);
+end for;
+// E8 has dual minimum 2 -> the rank-1 test is inconclusive (it really IS
+// additively indecomposable, but this test cannot see that).
+Expect("E8 rank-1 test inconclusive", IsAdditivelyDecomposableByRankOne(Lattice("E",8)), false);
+
+// ---------------------------------------------------------------------------
+// IsAdditivelyIndecomposable: layered decision <value, determined>.
+// Complete for rank <= 8 (Mordell / Plesken III.4) and several rank >= 9 cases.
+// ---------------------------------------------------------------------------
+print "IsAdditivelyIndecomposable <value, determined>:";
+procedure ExpectAI(name, L, exp_val, exp_known)
+    v, known := IsAdditivelyIndecomposable(L);
+    Expect(name cat " (value)", known select v else "undet", known select exp_val else "undet");
+    Expect(name cat " (determined)", known, exp_known);
+end procedure;
+ExpectAI("Z1", StandardLattice(1), true, true);     // (Z,1)
+ExpectAI("A2 (rank2)", Lattice("A",2), false, true);  // Mordell
+ExpectAI("D5 (rank5)", Lattice("D",5), false, true);  // Mordell
+ExpectAI("E6", Lattice("E",6), true, true);          // Plesken III.4
+ExpectAI("A6 (not E6)", Lattice("A",6), false, true);
+ExpectAI("E7", Lattice("E",7), true, true);
+ExpectAI("E8", Lattice("E",8), true, true);
+ExpectAI("D8 (not E8)", Lattice("D",8), false, true);
+ExpectAI("Z9 (orthog decomp)", StandardLattice(9), false, true);
+
+// Plesken III.1 sufficient condition, as a standalone:
+print "SatisfiesPleskenIII1:";
+Expect("E8 satisfies III.1", SatisfiesPleskenIII1(Lattice("E",8)), true);
+Expect("Z3 fails III.1 (dual min <= 1)", SatisfiesPleskenIII1(StandardLattice(3)), false);
+
 printf "\n%o failure(s)\n", nfail;
 assert nfail eq 0;
 print "ALL TESTS PASSED";

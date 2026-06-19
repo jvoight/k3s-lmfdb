@@ -7,6 +7,7 @@
     my_neighbors.m
     neighbours_canonical.mag
     orth_dec.mag
+    tdesign.m
 
     FiniteGroups/Code
     {
