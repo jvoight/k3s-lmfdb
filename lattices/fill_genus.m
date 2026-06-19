@@ -153,6 +153,7 @@ intrinsic FillGenus(label::MonStgElt : timeout := 1800)
     if n eq 2 then 
         d := Determinant(L0);
         if IsSquare(-d) then 
+            // TODO (Eran) : fix this
             // At the moment, we don't do anything in this case.
             // I think this is always class number 1, but TODO (Eran): check!
             genus_success := false;
