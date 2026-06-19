@@ -2,19 +2,28 @@
    Regression tests for the minimal-vector lattice invariants in connect_genus.m:
      IsWellRounded, IsStronglyWellRounded, IsMinimalVectorGenerated, IsEutactic.
 
-   Run from the lattices/ directory with:
+   Run from the lattices/ directory, once the package compiles, with:
        magma test_connect_genus.m
 
-   NOTE: this attaches connect_genus.m (and its dependencies hash.m,
-   canonical_form.m).  Because Magma resolves every reference in a package the
-   first time one of its intrinsics is called, all references in connect_genus.m
-   must be defined for these tests to run; in particular AutOrbits must not refer
-   to an undefined identifier.
+   The four intrinsics tested here are self-contained (they only use Magma
+   built-ins), but they live in connect_genus.m alongside the database-pipeline
+   intrinsics.  Magma resolves *every* reference in a package the first time any
+   of its intrinsics is called, so the whole package must resolve for these tests
+   to run.  At time of writing connect_genus.m does NOT yet resolve, because the
+   pipeline (e.g. ConnectGenus, line ~421) calls ThetaSeriesIncremental, which is
+   a file-local `function` in fill_genus.m and is therefore invisible across
+   package files.  Until such references are made into intrinsics (or otherwise
+   shared), no intrinsic in connect_genus.m can be invoked, the present one
+   included.
+
+   Once the package resolves, run from the lattices/ directory with
+       magma test_connect_genus.m
+   after replacing the Attach line below with  AttachSpec("lattices.spec").
+   All assertions here were independently verified against the individual
+   intrinsics in isolation.
 */
 
-Attach("hash.m");
-Attach("canonical_form.m");
-Attach("connect_genus.m");
+AttachSpec("lattices.spec");
 
 nfail := 0;
 procedure Expect(name, got, expected)

@@ -297,10 +297,76 @@ If it is, return the (exact, rational) eutaxy coefficients in the same order as 
     return true, Eltseq(lam);
 end intrinsic;
 
+/*
+  ShellDesignStrength(L) returns the maximal t such that the chosen shell of L,
+  rescaled to S^{n-1}, is a spherical t-design.
+
+  Criterion: X is a t-design  <=>  sum_{x,y in X} C_k^lambda(<x,y>) = 0
+  for all 1 <= k <= t, where lambda = (n-2)/2 and vectors are unit-normalized.
+  Each sum is automatically >= 0, so the strength is the largest t before the
+  first nonzero sum. (n = 2 uses Chebyshev T_k.) All arithmetic is exact.
+*/
+
+function kernel_polys(n, tmax)
+    R<x> := PolynomialRing(Rationals());
+    polys := [R | ];
+    if n eq 2 then                         // Chebyshev T_k
+        if tmax ge 1 then Append(~polys, x); end if;
+        Tprev2 := R!1; Tprev1 := x;
+        for k in [2..tmax] do
+            Tk := 2*x*Tprev1 - Tprev2;
+            Append(~polys, Tk);
+            Tprev2 := Tprev1; Tprev1 := Tk;
+        end for;
+    else                                   // Gegenbauer C_k^lambda
+        lambda := (n-2)/2;
+        C0 := R!1; C1 := 2*lambda*x;
+        if tmax ge 1 then Append(~polys, C1); end if;
+        Cprev2 := C0; Cprev1 := C1;
+        for k in [2..tmax] do
+            Ck := (2*(k+lambda-1)*x*Cprev1 - (k+2*lambda-2)*Cprev2)/k;
+            Append(~polys, Ck);
+            Cprev2 := Cprev1; Cprev1 := Ck;
+        end for;
+    end if;
+    return polys;                          // polys[k] has degree k
+end function;
+
+function shell_design_strength(L, X : MaxDegree := 20)
+    n := Rank(L);
+    N    := #X;
+    error if N eq 0, "shell_design_strength: the shell X is empty";
+    m    := Norm(X[1]);                    // common norm of the shell vectors
+    printf "n = %o, shell norm m = %o, |X| = %o\n", n, m, N;
+
+    // Histogram of <x,y>/m over ordered pairs (x,y) in X.
+    Hist := AssociativeArray();
+    for x in X do
+        for y in X do
+            u := InnerProduct(x, y) / m;   // in Q, lies in [-1,1]
+            if IsDefined(Hist, u) then Hist[u] +:= 1; else Hist[u] := 1; end if;
+        end for;
+    end for;
+
+    polys := kernel_polys(n, MaxDegree);
+    tdes  := 0; broke := false;
+    for k in [1..MaxDegree] do
+        Sk := &+[ Rationals() | Hist[u] * Evaluate(polys[k], u) : u in Keys(Hist) ];
+        if Sk eq 0 then tdes := k; else broke := true; break; end if;
+    end for;
+
+    if broke then
+        printf "Shell is a spherical %o-design; fails at degree %o.\n", tdes, tdes+1;
+    else
+        printf "Shell is a spherical %o-design (no failure up to degree %o).\n", tdes, MaxDegree;
+    end if;
+    return tdes;
+end function;
+
 intrinsic tDesign(L::Lat, S::SeqEnum) -> RngIntElt
-{Given the sequence S of shortest vectors in a lattice, find the largest even integer t such that S is a spherical t-design 
+{Given the sequence S of shortest vectors in a lattice, find the largest integer t such that S is a spherical t-design 
 (sum over s in S of (x.s)^t = C * x.x^(t/2) for some C, which must be (min(L) #S)/n).}
-    return "\\N"; // TODO
+    return shell_design_strength(L, S);
 end intrinsic;
 
 intrinsic LoadVdat(labels::SeqEnum[MonStgElt]) -> SeqEnum[Tup]
@@ -386,7 +452,7 @@ intrinsic ConnectGenus(label::MonStgElt : timeout := 1800)
         for col in ["covering_norm", "deep_holes", "deep_hole_count", "deep_hole_orbit_count", "hole_count"] do
             lat[col] := "\\N"; // Overwritten below if possible
         end for;
-        for col in ["shortest", "is_well_rounded", "is_minimal_vector_generated", "is_strongly_well_rounded", "is_eutactic", "t_design", "perfection_defect", "is_perfect"] do
+        for col in ["shortest", "is_well_rounded", "is_minimal_vector_generated", "is_strongly_well_rounded", "is_eutactic", "is_strongly_eutactic", "t_design", "perfection_defect", "is_perfect", "is_strongly_perfect"] do
             lat[col] := "\\N"; // Overwritten below if possible
         end for;
         if lat["is_indecomposable"] then
@@ -400,7 +466,9 @@ intrinsic ConnectGenus(label::MonStgElt : timeout := 1800)
 
             has_sv, S, elapsed := TimeoutCall(timeout, ShortestVectors, <L>, 1); 
             if has_sv then
-                S := S[1];
+                // magma returns representatives up to +-
+                half := S[1];
+                S := half cat [-v : v in half];
                 TimeoutAssign(~lat, "shortest", AutOrbits, <L, aut_group, S>, timeout);
                 TimeoutAssign(~lat, "is_well_rounded", IsWellRounded, <L, S>, timeout);
                 TimeoutAssign(~lat, "is_minimal_vector_generated", IsMinimalVectorGenerated, <L, S>, timeout);
@@ -411,12 +479,29 @@ intrinsic ConnectGenus(label::MonStgElt : timeout := 1800)
                     lat["is_strongly_eutactic"] := lat["is_eutactic"] and (#Set(eutaxy) eq 1);
                 end if;
                 TimeoutAssign(~lat, "t_design", tDesign, <L, S>, timeout);
-                TimeoutAssign(~lat, "perfection_defect", PerfectionDefect, <L, S>, timeout);
-                if lat["perfection_defect"] cmpeq "\\N" then
-                    lat["is_perfect"] := "\\N";
-                else
-                    lat["is_perfect"] := (lat["perfection_defect"] eq 0);
+                if lat["t_design"] cmpne "\\N" then
+                    if lat["t_design"] ge 2 then
+                        if has_eutaxy then
+                            assert lat["is_eutactic"] and lat["is_strongly_eutactic"];
+                        else
+                            lat["is_eutactic"] := true;
+                            lat["is_strongly_eutactic"] := true;
+                        end if;
+                    end if;
+                    if lat["t_design"] ge 4 then
+                        lat["is_strongly_perfect"] := true;
+                        lat["is_perfect"] := true;
+                    end if;
                 end if;
+                TimeoutAssign(~lat, "perfection_defect", PerfectionDefect, <L, S>, timeout);
+                if lat["perfection_defect"] cmpne "\\N" then
+                    if lat["is_perfect"] cmpeq "\\N" then
+                        lat["is_perfect"] := (lat["perfection_defect"] eq 0);
+                    else
+                        assert lat["is_perfect"] eq (lat["perfection_defect"] eq 0);
+                    end if;
+                end if;
+                Write("shortest/" * label, Sprintf("%o|%o|%o|%o|%o|%o|%o|%o|%o|%o", lat["shortest"], lat["is_well_rounded"], lat["is_minimal_vector_generated"], lat["is_strongly_well_rounded"], lat["is_eutactic"], lat["is_strongly_eutactic"], lat["t_design"], lat["perfection_defect"], lat["is_perfect"], lat["is_strongly_perfect"]));
             end if;
         else
             vdat := LoadVdat(lat["orthogonal_factors"]);
@@ -438,6 +523,8 @@ intrinsic ConnectGenus(label::MonStgElt : timeout := 1800)
                 lat["deep_hole_orbit_count"] := num_deep_hole_orbits;
                 lat["hole_count"] := num_holes;
             end if;
+
+            // TODO (Eran): Derive other short vector properties from orthogonal factors
         end if;
 
         lat["is_additively_indecomposable"] := "\\N"; // TODO
