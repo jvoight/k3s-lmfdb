@@ -397,17 +397,42 @@ intrinsic LoadVdat(labels::SeqEnum[MonStgElt]) -> SeqEnum[Tup]
     return ans;
 end intrinsic;
 
-intrinsic LoadSVdat(labels::SeqEnum[MonStgElt]) -> SeqEnum[Tup]
-{Given a sequence of lattice labels, load short vectors data as a sequence of tuples
-(shortest vectors,....).  If any not available, return empty sequence instead}
+// Field order of the shortest/<label> files, matching what ConnectGenus writes.
+sv_fields := ["minimum", "shortest", "is_well_rounded", "is_minimal_vector_generated",
+              "is_strongly_well_rounded", "is_eutactic", "is_strongly_eutactic",
+              "t_design", "perfection_defect", "is_perfect", "is_strongly_perfect"];
+
+function parse_sv_field(s)
+    // Recover a stored value: booleans, integers, the null marker, or a raw string.
+    if s eq "\\N" then
+        return "\\N";
+    elif s eq "true" then
+        return true;
+    elif s eq "false" then
+        return false;
+    elif #s gt 0 and forall{ i : i in [1..#s] | s[i] in "0123456789-" }
+                 and exists{ i : i in [1..#s] | s[i] in "0123456789" } then
+        return StringToInteger(s);
+    else
+        return s;
+    end if;
+end function;
+
+intrinsic LoadSVdat(labels::SeqEnum[MonStgElt]) -> SeqEnum
+{Given a sequence of lattice labels, load short-vector data for each as an associative array keyed by property name (minimum, shortest, is_well_rounded, ...), with booleans and integers parsed and "\N" denoting a missing value.  If any file is not available, return an empty sequence instead.}
     ans := [];
     for label in labels do
         fname := "shortest/" * label;
         if not OpenTest(fname, "r") then
             return [];
         end if;
-        shortest := Explode(Split(Read(fname), "|"));
-        Append(~ans, < shortest >);
+        vals := Split(Split(Read(fname), "\n")[1], "|");
+        assert #vals eq #sv_fields;
+        dat := AssociativeArray();
+        for i in [1..#sv_fields] do
+            dat[sv_fields[i]] := parse_sv_field(vals[i]);
+        end for;
+        Append(~ans, dat);
     end for;
     return ans;
 end intrinsic;
@@ -530,7 +555,7 @@ intrinsic ConnectGenus(label::MonStgElt : timeout := 1800)
                         assert lat["is_perfect"] eq (lat["perfection_defect"] eq 0);
                     end if;
                 end if;
-                Write("shortest/" * label, Sprintf("%o|%o|%o|%o|%o|%o|%o|%o|%o|%o", lat["shortest"], lat["is_well_rounded"], lat["is_minimal_vector_generated"], lat["is_strongly_well_rounded"], lat["is_eutactic"], lat["is_strongly_eutactic"], lat["t_design"], lat["perfection_defect"], lat["is_perfect"], lat["is_strongly_perfect"]));
+                Write("shortest/" * label, Sprintf("%o|%o|%o|%o|%o|%o|%o|%o|%o|%o|%o", Minimum(L), lat["shortest"], lat["is_well_rounded"], lat["is_minimal_vector_generated"], lat["is_strongly_well_rounded"], lat["is_eutactic"], lat["is_strongly_eutactic"], lat["t_design"], lat["perfection_defect"], lat["is_perfect"], lat["is_strongly_perfect"]));
             end if;
         else
             vdat := LoadVdat(lat["orthogonal_factors"]);
@@ -553,7 +578,46 @@ intrinsic ConnectGenus(label::MonStgElt : timeout := 1800)
                 lat["hole_count"] := num_holes;
             end if;
 
-            // TODO (Eran): Derive other short vector properties from orthogonal factors
+            // Derive the short-vector properties that combine cleanly over an
+            // orthogonal direct sum.  Minimal vectors live entirely in the factors
+            // of smallest minimum, so a property such as well-roundedness holds for
+            // L iff every factor attains that minimum ("active") and has the
+            // property itself.
+            svdat := LoadSVdat(lat["orthogonal_factors"]);
+            if #svdat gt 0 then
+                mults := lat["orthogonal_multiplicities"];
+                ranks := [ StringToInteger(Split(f, ".")[1]) : f in lat["orthogonal_factors"] ];
+                minimum := Minimum([ d["minimum"] : d in svdat ]);
+                active := [ d["minimum"] eq minimum : d in svdat ];
+                all_active := &and active;
+                // "All factors active and each has the property": false if some
+                // factor is inactive or lacks it, "\N" if any value is unknown.
+                derive := function(key)
+                    if not all_active then return false; end if;
+                    vals := [ d[key] : d in svdat ];
+                    if exists{ v : v in vals | v cmpeq "\\N" } then return "\\N"; end if;
+                    return &and vals;
+                end function;
+                lat["is_well_rounded"]             := derive("is_well_rounded");
+                lat["is_minimal_vector_generated"] := derive("is_minimal_vector_generated");
+                lat["is_strongly_well_rounded"]    := derive("is_strongly_well_rounded");
+                lat["is_eutactic"]                 := derive("is_eutactic");
+                // Perfection defect: n(n+1)/2 minus the dimension spanned by the
+                // minimal vectors, which sit block-diagonally inside the active
+                // factors, so the spanned dimension adds up over those factors.
+                if forall{ i : i in [1..#svdat] | not active[i]
+                               or svdat[i]["perfection_defect"] cmpne "\\N" } then
+                    perfrank := &+[ Integers() |
+                        mults[i] * (ranks[i]*(ranks[i]+1) div 2 - svdat[i]["perfection_defect"])
+                        : i in [1..#svdat] | active[i] ];
+                    lat["perfection_defect"] := n*(n+1) div 2 - perfrank;
+                    lat["is_perfect"] := (lat["perfection_defect"] eq 0);
+                end if;
+                // The remaining shell properties (shortest, is_strongly_eutactic,
+                // t_design, is_strongly_perfect) have no simple orthogonal-sum rule
+                // (they need the factors' kissing numbers / shell designs) and are
+                // left as "\N" here.
+            end if;
         end if;
 
         lat["is_additively_indecomposable"] := "\\N"; // TODO
