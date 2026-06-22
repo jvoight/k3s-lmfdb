@@ -297,7 +297,6 @@ If it is, return the (exact, rational) eutaxy coefficients in the same order as 
     return true, Eltseq(lam);
 end intrinsic;
 
-<<<<<<< HEAD
 intrinsic PerfectionDefect(L::Lat, S::SeqEnum) -> RngIntElt
 {Given a lattice L of rank n, return n(n+1)/2 - rank of span (in M_n(R)) of the rank 1 matrices (s_i s_i^t), with s in S.}
     n := Rank(L);
@@ -454,11 +453,6 @@ as is the rare discriminant 4/5 case with a unimodular rank-(n-1) sublattice.}
     end if;
     if SatisfiesPleskenIII1(L) then return true, true; end if;  // Plesken III.1 (min(L*) > 1 already checked)
     return false, false;   // discriminant >= 6 (or the rare disc 4/5 gap): undetermined
-=======
-intrinsic tDesign(L::Lat, S::SeqEnum) -> RngIntElt
-{Given the sequence S of shortest vectors in a lattice, find the largest even integer t such that S is a spherical t-design (sum_(s in S) (x.s)^t = C * x.x^(t/2) for some C, which must be (min(L) #S)/n).}
-    return "\\N"; // TODO (Eran)
->>>>>>> 0611552440d21dee74706a2c8ed340d0420961d6
 end intrinsic;
 
 intrinsic LoadVdat(labels::SeqEnum[MonStgElt]) -> SeqEnum[Tup]
