@@ -119,6 +119,57 @@ function SphereVolume(n)
     end if;
 end function;
 
+// Exact GL2(Z)-isometry test for the canonical rank-2 forms [[0,m],[m,k1]] and
+// [[0,m],[m,k2]] of (square) determinant -m^2.  These isotropic forms have finite
+// isometry groups, so we can decide isometry directly: an isometry sends a
+// primitive isotropic vector of the first to one of the second, and the rest of
+// the basis is then determined up to the (finitely many) sign/line choices.
+function square_disc_isometric(k1, k2, m)
+    G1 := Matrix(Integers(), 2, 2, [0, m, m, k1]);
+    G2 := Matrix(Integers(), 2, 2, [0, m, m, k2]);
+    g1 := GCD(k1, 2*m);                       // GCD(0, 2m) = 2m
+    isotropic := [ Vector(Integers(), [1, 0]),
+                   Vector(Integers(), [-k1 div g1, (2*m) div g1]) ];
+    for v1 in isotropic, sgn in [1, -1] do
+        w1 := sgn * v1;
+        row := Vector(Integers(), Eltseq(Matrix(w1) * G1));   // w1^t G1
+        d := GCD(row[1], row[2]);
+        if d eq 0 or m mod d ne 0 then continue; end if;
+        _, p, q := XGCD(row[1], row[2]);                      // p*row[1] + q*row[2] = d
+        v20 := (m div d) * Vector(Integers(), [p, q]);        // <w1, v20> = m
+        Qv20 := (Matrix(v20) * G1 * Transpose(Matrix(v20)))[1][1];
+        if (k2 - Qv20) mod (2*m) ne 0 then continue; end if;  // Q(v20 + t w1) = Qv20 + 2 t m
+        v2 := v20 + ((k2 - Qv20) div (2*m)) * w1;
+        U := Matrix(Integers(), 2, 2, [w1[1], v2[1], w1[2], v2[2]]);   // columns w1, v2
+        if Abs(Determinant(U)) eq 1 and Transpose(U)*G1*U eq G2 then
+            return true;
+        end if;
+    end for;
+    return false;
+end function;
+
+// Genus representatives of a rank-2 lattice L0 of square determinant -m^2.  Magma's
+// GenusRepresentatives fails here (it reduces to binary quadratic forms, which
+// reject square discriminants).  Every such lattice is isometric to a canonical
+// [[0,m],[m,k]] with 0 <= k < 2m; we keep those in L0's genus (Genus() is
+// reliable for these even though the isometry routines are not) and remove
+// duplicate isometry classes with the exact test above.
+function genus_reps_square_disc(L0)
+    m := Isqrt(Integers() ! (-Determinant(L0)));
+    G0 := Genus(L0);
+    reps := [];
+    rep_ks := [];
+    for k in [0 .. 2*m - 1] do
+        Lk := LatticeWithGram(Matrix(Rationals(), 2, 2, [0, m, m, k]) : CheckPositive := false);
+        if Genus(Lk) ne G0 then continue; end if;
+        if forall{ kr : kr in rep_ks | not square_disc_isometric(k, kr, m) } then
+            Append(~rep_ks, k);
+            Append(~reps, Lk);
+        end if;
+    end for;
+    return reps;
+end function;
+
 intrinsic FillGenus(label::MonStgElt : timeout := 1800)
 {Fill the data for a genus and its lattice representatives, given files in the genera_basic format.}
     data := Split(Split(Read("genera_basic/" * label), "\n")[1], "|");
@@ -148,18 +199,15 @@ intrinsic FillGenus(label::MonStgElt : timeout := 1800)
     L0 := LWG(gram0 : CheckPositive := false);
     vprintf FillGenus, 1 : "Computing genus representatives...";
     reps := [];
-    // Taking care of a special case Magma has trouble with
-    genus_success := true;
-    if n eq 2 then 
-        d := Determinant(L0);
-        if IsSquare(-d) then 
-            // TODO (Eran) : fix this
-            // At the moment, we don't do anything in this case.
-            // I think this is always class number 1, but TODO (Eran): check!
-            genus_success := false;
-        end if; 
-    end if;
-    if genus_success then
+    // Rank-2 lattices of square determinant -m^2 have isotropic (split) forms, on
+    // which Magma's GenusRepresentatives fails (it reduces to binary quadratic
+    // forms, which reject square discriminants); these are handled directly.  Note
+    // the class number is NOT always 1 -- e.g. for m = 5 some genera have two
+    // classes.
+    if n eq 2 and IsSquare(-Determinant(L0)) then
+        genus_success, reps, elapsed := TimeoutCall(timeout, genus_reps_square_disc, <L0>, 1);
+        vprintf FillGenus, 1 : "Genus representatives (square discriminant) computed in %o seconds\n", elapsed;
+    else
         genus_success, reps, elapsed := TimeoutCall(timeout, genus_reps_Magma, <L0>, 1);
         vprintf FillGenus, 1 : "Genus representatives computed in %o seconds\n", elapsed;
     end if;
