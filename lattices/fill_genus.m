@@ -24,10 +24,11 @@ intrinsic StringToReal(s::MonStgElt) -> RngIntElt
     return #t eq 1 select RealField()!n else RealField()!n + s*RealField()!StringToInteger(t[2])/10^#t[2];
 end intrinsic;
 
-intrinsic ThetaSeriesIncremental(L::Lat, target_prec::RngIntElt, timeout::RngIntElt) -> SeqEnum, RngIntElt
-{Compute the theta series coefficients of L, doubling the precision until either target_prec is reached or the time budget timeout (in seconds) is exhausted. Returns the coefficient sequence obtained and the precision actually reached.}
+intrinsic ThetaSeriesIncremental(L::Lat, target_prec::RngIntElt, timeout::RngIntElt) -> SeqEnum, RngIntElt, Assoc
+{Compute the theta series coefficients of L, doubling the precision until either target_prec is reached or the time budget timeout (in seconds) is exhausted. Returns the coefficient sequence obtained, the precision actually reached, and an associative array mapping each precision computed to the time (in seconds) it took to compute the theta series to that precision.}
     best_theta := [];
     best_prec := 0;
+    theta_elapsed := AssociativeArray();
     remaining := timeout;
     prec := Maximum(16, Minimum(L) + 4);
     while prec le target_prec and remaining gt 0 do
@@ -39,12 +40,16 @@ intrinsic ThetaSeriesIncremental(L::Lat, target_prec::RngIntElt, timeout::RngInt
         end if;
         best_theta := Eltseq(theta[1]);
         best_prec := current_prec;
+        // ThetaSeries recomputes the whole series each time, so this elapsed time
+        // is the cost of computing theta to current_prec (which is what SetHashes
+        // uses to cost theta-based hashing).
+        theta_elapsed[current_prec] := StringToReal(elapsed);
         vprintf FillGenus, 1 : "Theta series to precision %o in %o s\n", current_prec, elapsed;
         if current_prec ge target_prec then break; end if;
         remaining -:= Ceiling(StringToReal(elapsed));
         prec *:= 2;
     end while;
-    return best_theta, best_prec;
+    return best_theta, best_prec, theta_elapsed;
 end intrinsic;
 
 function dict_to_jsonb(dict)
@@ -253,6 +258,12 @@ intrinsic FillGenus(label::MonStgElt : timeout := 1800)
         to_per_rep := timeout div #reps + 1;
     end if;
 
+    // Theta-series timing per precision, aggregated over the genus representatives.
+    // DECISION: aggregate by max time per precision (the slowest representative
+    // bounds the cost of hashing the whole genus to that precision).  This may
+    // change in future -- e.g. to the mean or to per-representative timings.
+    theta_elapsed := AssociativeArray();
+
     for Li->L in reps do
         lat := AssociativeArray();
         lat["lattice"] := L; // useful for subroutines; removed before saving to disk
@@ -327,7 +338,11 @@ intrinsic FillGenus(label::MonStgElt : timeout := 1800)
             m := Minimum(L);
             lat["minimum"] := m;
             target_prec := Max(150, m+4);
-            theta, theta_prec := ThetaSeriesIncremental(L, target_prec, to_per_rep);
+            theta, theta_prec, rep_theta_elapsed := ThetaSeriesIncremental(L, target_prec, to_per_rep);
+            for p in Keys(rep_theta_elapsed) do
+                theta_elapsed[p] := IsDefined(theta_elapsed, p)
+                    select Maximum(theta_elapsed[p], rep_theta_elapsed[p]) else rep_theta_elapsed[p];
+            end for;
             lat["is_universal"] := "\\N";
             lat["is_even_universal"] := "\\N";
             if theta_prec gt 0 then
@@ -425,7 +440,7 @@ intrinsic FillGenus(label::MonStgElt : timeout := 1800)
     // We need to be able to look up hash functions for lattices that are not in the main
     // genus being processed.  So we write the hash function used to a separate file
     // so that it can be looked up when needed (see lookup_hash_function in connect_genus.m)
-    Write(Sprintf("genera_hash/%o", genus_hash), advanced["hash_function"] : Overwrite);
+    Write(Sprintf("genera_hash/%o", advanced["genus_hash"]), advanced["hash_function"] : Overwrite);
 
     // TODO: Compute ambient_lattice
 

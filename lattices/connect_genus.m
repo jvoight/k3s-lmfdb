@@ -509,9 +509,9 @@ intrinsic LoadSVdat(labels::SeqEnum[MonStgElt]) -> SeqEnum
     return ans;
 end intrinsic;
 
-intrinsic TimeoutAssign(~D::Assoc, key::MonStgElt, func::UserProgram, inp::Tup, timeout::RngIntElt)
+intrinsic TimeoutAssign(~D::Assoc, key::MonStgElt, func::UserProgram, inp::Tup, timeout::RngIntElt : Parameters := [])
 {Compute value using given function, then store in D}
-    success, out, elapsed := TimeoutCall(timeout, func, inp, 1);
+    success, out, elapsed := TimeoutCall(timeout, func, inp, 1 : Parameters := Parameters);
     if success then
         D[key] := out[1];
     else
@@ -606,7 +606,7 @@ intrinsic ConnectGenus(label::MonStgElt : timeout := 1800)
                     lat["is_strongly_eutactic"] := lat["is_eutactic"] and (#Set(eutaxy) eq 1);
                 end if;
                 // tDesign only needs reps up to +/-
-                TimeoutAssign(~lat, "t_design", tDesign, <L, half>, timeout : Parameters := [<A,aut_group>]);
+                TimeoutAssign(~lat, "t_design", tDesign, <L, half>, timeout : Parameters := [<"A", aut_group>]);
                 if lat["t_design"] cmpne "\\N" then
                     if lat["t_design"] ge 2 then
                         if has_eutaxy then
