@@ -455,11 +455,21 @@ as is the rare discriminant 4/5 case with a unimodular rank-(n-1) sublattice.}
     return false, false;   // discriminant >= 6 (or the rare disc 4/5 gap): undetermined
 end intrinsic;
 
+function Vfile(label)
+    sig := Join(Split(label, ".")[1..2], "/");
+    return := Sprintf("voronoi/%o/%o", sig, label);
+end function;
+
+intrinsic SaveVdat(lat::Assoc)
+{Save the voronoi data to disk for later use in the decomposable case}
+    Write(Vfile(lat["label"]), Sprintf("%o|%o|%o|%o|%o", lat["covering_norm_num"], lat["covering_norm_den"], lat["deep_hole_count"], lat["deep_hole_orbit_count"], lat["hole_count"]));
+end intrinsic;
+
 intrinsic LoadVdat(labels::SeqEnum[MonStgElt]) -> SeqEnum[Tup]
 {Given a sequence of lattice labels, load Voronoi data as a sequence of tuples (covering norm, num deep holes, num deep hole orbits, num holes).  If any not available, return empty sequence instead}
     ans := [];
     for label in labels do
-        fname := "voronoi/" * label;
+        fname := Vfile(label);
         if not OpenTest(fname, "r") then
             return [];
         end if;
@@ -490,11 +500,20 @@ function parse_sv_field(s)
     end if;
 end function;
 
+function SVfile(label)
+    sig := Join(Split(label, ".")[1..2], "/");
+    return := Sprintf("shortest/%o/%o", sig, label);
+end function;
+
+intrinsic SaveSVdat(lat::Assoc)
+{Save the shortest vector data to disk for later use in the decomposable case}
+    Write(SVfile(lat["label"]), Sprintf("%o|%o|%o|%o|%o|%o|%o|%o|%o|%o|%o", lat["minimum"], lat["shortest"], lat["is_well_rounded"], lat["is_minimal_vector_generated"], lat["is_strongly_well_rounded"], lat["is_eutactic"], lat["is_strongly_eutactic"], lat["t_design"], lat["perfection_defect"], lat["is_perfect"], lat["is_strongly_perfect"]));
+
 intrinsic LoadSVdat(labels::SeqEnum[MonStgElt]) -> SeqEnum
 {Given a sequence of lattice labels, load short-vector data for each as an associative array keyed by property name (minimum, shortest, is_well_rounded, ...), with booleans and integers parsed and "\N" denoting a missing value.  If any file is not available, return an empty sequence instead.}
     ans := [];
     for label in labels do
-        fname := "shortest/" * label;
+        fname := SVfile(label);
         if not OpenTest(fname, "r") then
             return [];
         end if;
@@ -588,7 +607,7 @@ intrinsic ConnectGenus(label::MonStgElt : timeout := 1800)
             if success then
                 lat["covering_norm_num"], lat["covering_norm_den"], lat["deep_holes"], lat["deep_hole_count"], lat["deep_hole_orbit_count"], lat["hole_count"] := Explode(vdat);
                 // We write the data to a file for loading in the decomposable case
-                Write("voronoi/" * label, Sprintf("%o|%o|%o|%o|%o", lat["covering_norm_num"], lat["covering_norm_den"], lat["deep_hole_count"], lat["deep_hole_orbit_count"], lat["hole_count"]));
+                SaveVdat(lat);
             end if;
 
             has_sv, S, elapsed := TimeoutCall(timeout, ShortestVectors, <L>, 1); 
