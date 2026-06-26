@@ -153,6 +153,37 @@ intrinsic OrthogonalSumName(factor_labels::SeqEnum, mults::SeqEnum, names::Assoc
     return ComposeSumName([ <names[factor_labels[i]], mults[i]> : i in order ]);
 end intrinsic;
 
+// Split s on a separator character, ignoring separators nested inside [ ].
+function SplitDepth0(s, sep)
+    parts := [];  depth := 0;  start := 1;
+    for i in [1..#s] do
+        c := Substring(s, i, 1);
+        if c eq "[" then depth +:= 1;
+        elif c eq "]" then depth -:= 1;
+        elif c eq sep and depth eq 0 then
+            Append(~parts, Substring(s, start, i-start));  start := i+1;
+        end if;
+    end for;
+    Append(~parts, Substring(s, start, #s-start+1));
+    return parts;
+end function;
+
+intrinsic ParseTensorDecompositions(s::MonStgElt) -> SeqEnum
+{Parse the tensor_decompositions field "[[[lab,ct],...],...]" into a sequence of
+ options, each a sequence of tuples <factor_label, count>; "\N" -> empty.}
+    if s eq "\\N" or #s lt 2 then return []; end if;
+    result := [];
+    for optstr in SplitDepth0(Substring(s, 2, #s-2), ",") do
+        opt := [];
+        for pairstr in SplitDepth0(Substring(optstr, 2, #optstr-2), ",") do
+            lc := Split(Substring(pairstr, 2, #pairstr-2), ",");
+            Append(~opt, <lc[1], StringToInteger(lc[2])>);
+        end for;
+        Append(~result, opt);
+    end for;
+    return result;
+end intrinsic;
+
 intrinsic TensorProductName(option::SeqEnum, names::Assoc) -> MonStgElt
 {Compose the tensor-product name from one tensor-decomposition option, given as a
  sequence of tuples <factor_label, count>, using the label->name map.  Factors are
