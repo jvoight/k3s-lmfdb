@@ -20,8 +20,8 @@ function load_genus_data(genus_label)
     return genus;
 end function;
 
-function lookup_hash_function(genus_hash)
-    fname := Sprintf("genera_hash/%o", genus_hash);
+function lookup_hash_function(genus_hash, rank, nplus)
+    fname := LabelPath("genera_hash", rank, nplus, genus_hash); // Sprintf("genera_hash/%o", genus_hash);
     if not OpenTest(fname, "r") then
         return "";
     end if;
@@ -30,7 +30,7 @@ end function;
 
 hash_format := Split(Split(Read("lat_hash.format"), "\n")[1], "|");
 function load_hash_data(genus_hash, rank, nplus : as_assoc:=true)
-    fname := Sprintf("lattice_hashes/%o", genus_hash); // TODO (David): should add folders
+    fname := LabelPath("lattice_hashes", rank, nplus, genus_hash); // Sprintf("lattice_hashes/%o", genus_hash);
     if not OpenTest(fname, "r") then
         if as_assoc then return AssociativeArray(); else return []; end if;
     end if;
@@ -82,7 +82,8 @@ end intrinsic;
 intrinsic FindGenusData(L::Lat) -> Tup
 {Given a lattice, find the hash of its genus and the hash function used for that genus}
     genus_hash := HashGenus(L);
-    hash_func := lookup_hash_function(genus_hash);
+    nplus := Signature(GramMatrix(L));
+    hash_func := lookup_hash_function(genus_hash, Rank(L), nplus);
     return <genus_hash, hash_func>;
 end intrinsic;
 
@@ -128,7 +129,19 @@ intrinsic LatSortKey(label::MonStgElt) -> Tup
     return <StringToInteger(pieces[1]), -StringToInteger(pieces[2]), StringToInteger(pieces[3]), label>;
 end intrinsic;
 
-intrinsic LabelPath(folder::MonStgElt, label::MonStgElt : Create := false) -> MonStgElt
+intrinsic LabelPath(folder::MonStgElt, rank::RngIntElt, nplus::RngIntElt, identifier::MonStgElt : Create := true) -> MonStgElt
+{The on-disk path "folder/rank/nplus/identifier" for a lattice identifier where
+the lattice has rank and nplus.  Centralises the data directory layout so that a
+ future change to the folder scheme only needs editing here.  If Create is true,
+ the containing directory is created (mkdir -p) so the path is ready to write to.}
+    dir := Sprintf("%o/%o/%o", folder, rank, nplus);
+    if Create then
+        System("mkdir -p " * dir);
+    end if;
+    return Sprintf("%o/%o", dir, identifier);
+end intrinsic;
+
+intrinsic LabelPath(folder::MonStgElt, label::MonStgElt : Create := true) -> MonStgElt
 {The on-disk path "folder/rank/nplus/label" for a lattice or genus label of the
  form rank.nplus.det.... .  Centralises the data directory layout so that a
  future change to the folder scheme only needs editing here.  If Create is true,
@@ -137,11 +150,7 @@ intrinsic LabelPath(folder::MonStgElt, label::MonStgElt : Create := false) -> Mo
     require #pieces ge 2 : "label must have the form rank.nplus....";
     rank := pieces[1];
     nplus := pieces[2];                   // label is rank.nplus.det.... (see create_genus_label)
-    dir := Sprintf("%o/%o/%o", folder, rank, nplus);
-    if Create then
-        System("mkdir -p " * dir);
-    end if;
-    return Sprintf("%o/%o", dir, label);
+    return LabelPath(folder, rank, nplus, label : Create := Create);
 end intrinsic;
 
 intrinsic AutOrbits(L::Lat, A::GrpMat, vecs::SeqEnum) -> SeqEnum
