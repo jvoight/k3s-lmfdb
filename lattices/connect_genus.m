@@ -93,7 +93,7 @@ intrinsic FindLabel(L::Lat : genus_data:=<>) -> MonStgElt
         genus_data := FindGenusData(L);
     end if;
     genus_hash, hash_func := Explode(genus_data);
-    by_hash := GetHashes(genus_hash);
+    by_hash := GetHashes(genus_hash, Rank(L), Signature(GramMatrix(L)));
     if #by_hash eq 0 then
         // No lattices stored for this genus
         return "\\N";
@@ -562,6 +562,8 @@ intrinsic ConnectGenus(label::MonStgElt : timeout := 1800)
 {Fill in lattice data that requires working with lattices in different genera}
     SetColumns(0);
     advanced_format := Split(Split(Read("lat_advanced.format"), "\n")[1], "|");
+    atomic_names := LoadAtomicNames();              // stage-4 atomic names (run_name_lattices)
+    name_i := Index(advanced_format, "name");
     genus := load_genus_data(label);
     n := StringToInteger(genus["rank"]);
     s := StringToInteger(genus["nplus"]);
@@ -602,9 +604,10 @@ intrinsic ConnectGenus(label::MonStgElt : timeout := 1800)
         lat["is_indecomposable"] := (#summands eq 1);
         summand_labels := [FindLabel(M) : M in summands];
         collected := CountFibers(summand_labels, LatSortKey);
-        lat["name"] := "\\N"; // TODO
         lat["orthogonal_factors"] := [fib[1][4] : fib in collected];
         lat["orthogonal_multiplicities"] := [fib[2] : fib in collected];
+        lat["name"] := LatticeName(lat["label"], lat["orthogonal_factors"],
+                                   lat["orthogonal_multiplicities"], atomic_names, name_i);
 
         for col in ["covering_norm", "deep_holes", "deep_hole_count", "deep_hole_orbit_count", "hole_count"] do
             lat[col] := "\\N"; // Overwritten below if possible

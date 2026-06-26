@@ -226,3 +226,69 @@ intrinsic TensorProductName(option::SeqEnum, names::Assoc) -> MonStgElt
     end for;
     return ComposeTensorName(factor_names);
 end intrinsic;
+
+// --- naming a single lattice during ConnectGenus (stage 4 composite part) ---
+
+intrinsic LoadAtomicNames() -> Assoc
+{Load the atomic-name map written by run_name_lattices (the file "atomic_names",
+ one "label|name" per line) as a label -> name associative array.}
+    names := AssociativeArray();
+    if OpenTest("atomic_names", "r") then
+        for line in Split(Read("atomic_names"), "\n") do
+            if #line eq 0 then continue; end if;
+            parts := Split(line, "|");
+            names[parts[1]] := parts[2];
+        end for;
+    end if;
+    return names;
+end intrinsic;
+
+intrinsic LatticeName(label::MonStgElt, ortho_factors::SeqEnum, ortho_mults::SeqEnum,
+                      atomic_names::Assoc, name_i::RngIntElt) -> MonStgElt
+{The name of the lattice with the given label: its atomic name if present in the
+ atomic_names map, otherwise composed from its decompositions (tensor product
+ preferred over orthogonal sum), reading each factor's name from atomic_names or,
+ failing that, from the factor's lattice_advanced_data file (column name_i).
+ Returns "\N" if it cannot yet be named (some factor is not yet named).}
+    if IsDefined(atomic_names, label) then return atomic_names[label]; end if;
+
+    factor_name := function(f)
+        if IsDefined(atomic_names, f) then return atomic_names[f]; end if;
+        path := LabelPath("lattice_advanced_data", f);
+        if not OpenTest(path, "r") then return "\\N"; end if;
+        return Split(Split(Read(path), "\n")[1], "|")[name_i];
+    end function;
+
+    // tensor products preferred
+    pieces := Split(label, ".");
+    tpath := "lattice_decomp_data/" * pieces[1] * "." * pieces[2];
+    if OpenTest(tpath, "r") then
+        for line in Split(Read(tpath), "\n") do
+            if #line eq 0 then continue; end if;
+            parts := Split(line, "|");
+            if parts[1] ne label then continue; end if;
+            for opt in ParseTensorDecompositions(parts[2]) do
+                fnames := AssociativeArray();
+                for pr in opt do
+                    nm := factor_name(pr[1]);
+                    if nm ne "\\N" then fnames[pr[1]] := nm; end if;
+                end for;
+                t := TensorProductName(opt, fnames);
+                if t ne "\\N" then return t; end if;
+            end for;
+            break;
+        end for;
+    end if;
+
+    // orthogonal sum
+    if #ortho_factors gt 0 then
+        fnames := AssociativeArray();
+        for f in ortho_factors do
+            nm := factor_name(f);
+            if nm ne "\\N" then fnames[f] := nm; end if;
+        end for;
+        return OrthogonalSumName(ortho_factors, ortho_mults, fnames);
+    end if;
+
+    return "\\N";
+end intrinsic;
