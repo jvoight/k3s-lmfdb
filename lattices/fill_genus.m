@@ -24,9 +24,11 @@ intrinsic StringToReal(s::MonStgElt) -> RngIntElt
     return #t eq 1 select RealField()!n else RealField()!n + s*RealField()!StringToInteger(t[2])/10^#t[2];
 end intrinsic;
 
-function ThetaSeriesIncremental(L, target_prec, timeout)
+intrinsic ThetaSeriesIncremental(L::Lat, target_prec::RngIntElt, timeout::RngIntElt) -> SeqEnum, RngIntElt, Assoc
+{Compute the theta series coefficients of L, doubling the precision until either target_prec is reached or the time budget timeout (in seconds) is exhausted. Returns the coefficient sequence obtained, the precision actually reached, and an associative array mapping each precision computed to the time (in seconds) it took to compute the theta series to that precision.}
     best_theta := [];
     best_prec := 0;
+    theta_elapsed := AssociativeArray();
     remaining := timeout;
     prec := Maximum(16, Minimum(L) + 4);
     while prec le target_prec and remaining gt 0 do
@@ -38,19 +40,24 @@ function ThetaSeriesIncremental(L, target_prec, timeout)
         end if;
         best_theta := Eltseq(theta[1]);
         best_prec := current_prec;
+        // ThetaSeries recomputes the whole series each time, so this elapsed time
+        // is the cost of computing theta to current_prec (which is what SetHashes
+        // uses to cost theta-based hashing).
+        theta_elapsed[current_prec] := StringToReal(elapsed);
         vprintf FillGenus, 1 : "Theta series to precision %o in %o s\n", current_prec, elapsed;
         if current_prec ge target_prec then break; end if;
         remaining -:= Ceiling(StringToReal(elapsed));
         prec *:= 2;
     end while;
-    return best_theta, best_prec;
-end function;
+    return best_theta, best_prec, theta_elapsed;
+end intrinsic;
 
 function dict_to_jsonb(dict)
     return "{" * Join([Sprintf("\"%o\":%o", key, dict[key]) : key in Keys(dict)], ",") * "}";
 end function;
 
-function to_postgres(val : jsonb_val := false)
+intrinsic to_postgres(val::Any : jsonb_val := false) -> Any
+{Serialise a value (matrix, sequence, tuple, associative array or scalar) into the Postgres array / JSON text format used for the database export.}
     delims := jsonb_val select "[]" else "{}";
     if ISA(Type(val),Mtrx) then
         return to_postgres(Eltseq(val) : jsonb_val:=jsonb_val);
@@ -70,7 +77,7 @@ function to_postgres(val : jsonb_val := false)
     else
         return val;
     end if;
-end function;
+end intrinsic;
 
 function RescaledDualNF(L)
     Q := Rationals();
@@ -117,6 +124,57 @@ function SphereVolume(n)
     end if;
 end function;
 
+// Exact GL2(Z)-isometry test for the canonical rank-2 forms [[0,m],[m,k1]] and
+// [[0,m],[m,k2]] of (square) determinant -m^2.  These isotropic forms have finite
+// isometry groups, so we can decide isometry directly: an isometry sends a
+// primitive isotropic vector of the first to one of the second, and the rest of
+// the basis is then determined up to the (finitely many) sign/line choices.
+function square_disc_isometric(k1, k2, m)
+    G1 := Matrix(Integers(), 2, 2, [0, m, m, k1]);
+    G2 := Matrix(Integers(), 2, 2, [0, m, m, k2]);
+    g1 := GCD(k1, 2*m);                       // GCD(0, 2m) = 2m
+    isotropic := [ Vector(Integers(), [1, 0]),
+                   Vector(Integers(), [-k1 div g1, (2*m) div g1]) ];
+    for v1 in isotropic, sgn in [1, -1] do
+        w1 := sgn * v1;
+        row := Vector(Integers(), Eltseq(Matrix(w1) * G1));   // w1^t G1
+        d := GCD(row[1], row[2]);
+        if d eq 0 or m mod d ne 0 then continue; end if;
+        _, p, q := XGCD(row[1], row[2]);                      // p*row[1] + q*row[2] = d
+        v20 := (m div d) * Vector(Integers(), [p, q]);        // <w1, v20> = m
+        Qv20 := (Matrix(v20) * G1 * Transpose(Matrix(v20)))[1][1];
+        if (k2 - Qv20) mod (2*m) ne 0 then continue; end if;  // Q(v20 + t w1) = Qv20 + 2 t m
+        v2 := v20 + ((k2 - Qv20) div (2*m)) * w1;
+        U := Matrix(Integers(), 2, 2, [w1[1], v2[1], w1[2], v2[2]]);   // columns w1, v2
+        if Abs(Determinant(U)) eq 1 and Transpose(U)*G1*U eq G2 then
+            return true;
+        end if;
+    end for;
+    return false;
+end function;
+
+// Genus representatives of a rank-2 lattice L0 of square determinant -m^2.  Magma's
+// GenusRepresentatives fails here (it reduces to binary quadratic forms, which
+// reject square discriminants).  Every such lattice is isometric to a canonical
+// [[0,m],[m,k]] with 0 <= k < 2m; we keep those in L0's genus (Genus() is
+// reliable for these even though the isometry routines are not) and remove
+// duplicate isometry classes with the exact test above.
+function genus_reps_square_disc(L0)
+    m := Isqrt(Integers() ! (-Determinant(L0)));
+    G0 := Genus(L0);
+    reps := [];
+    rep_ks := [];
+    for k in [0 .. 2*m - 1] do
+        Lk := LatticeWithGram(Matrix(Rationals(), 2, 2, [0, m, m, k]) : CheckPositive := false);
+        if Genus(Lk) ne G0 then continue; end if;
+        if forall{ kr : kr in rep_ks | not square_disc_isometric(k, kr, m) } then
+            Append(~rep_ks, k);
+            Append(~reps, Lk);
+        end if;
+    end for;
+    return reps;
+end function;
+
 intrinsic FillGenus(label::MonStgElt : timeout := 1800)
 {Fill the data for a genus and its lattice representatives, given files in the genera_basic format.}
     data := Split(Split(Read("genera_basic/" * label), "\n")[1], "|");
@@ -146,17 +204,15 @@ intrinsic FillGenus(label::MonStgElt : timeout := 1800)
     L0 := LWG(gram0 : CheckPositive := false);
     vprintf FillGenus, 1 : "Computing genus representatives...";
     reps := [];
-    // Taking care of a special case Magma has trouble with
-    genus_success := true;
-    if n eq 2 then 
-        d := Determinant(L0);
-        if IsSquare(-d) then 
-            // At the moment, we don't do anything in this case.
-            // I think this is always class number 1, but TODO (Eran): check!
-            genus_success := false;
-        end if; 
-    end if;
-    if genus_success then
+    // Rank-2 lattices of square determinant -m^2 have isotropic (split) forms, on
+    // which Magma's GenusRepresentatives fails (it reduces to binary quadratic
+    // forms, which reject square discriminants); these are handled directly.  Note
+    // the class number is NOT always 1 -- e.g. for m = 5 some genera have two
+    // classes.
+    if n eq 2 and IsSquare(-Determinant(L0)) then
+        genus_success, reps, elapsed := TimeoutCall(timeout, genus_reps_square_disc, <L0>, 1);
+        vprintf FillGenus, 1 : "Genus representatives (square discriminant) computed in %o seconds\n", elapsed;
+    else
         genus_success, reps, elapsed := TimeoutCall(timeout, genus_reps_Magma, <L0>, 1);
         vprintf FillGenus, 1 : "Genus representatives computed in %o seconds\n", elapsed;
     end if;
@@ -201,6 +257,12 @@ intrinsic FillGenus(label::MonStgElt : timeout := 1800)
     if (#reps gt 0) then
         to_per_rep := timeout div #reps + 1;
     end if;
+
+    // Theta-series timing per precision, aggregated over the genus representatives.
+    // DECISION: aggregate by max time per precision (the slowest representative
+    // bounds the cost of hashing the whole genus to that precision).  This may
+    // change in future -- e.g. to the mean or to per-representative timings.
+    theta_elapsed := AssociativeArray();
 
     for Li->L in reps do
         lat := AssociativeArray();
@@ -276,7 +338,11 @@ intrinsic FillGenus(label::MonStgElt : timeout := 1800)
             m := Minimum(L);
             lat["minimum"] := m;
             target_prec := Max(150, m+4);
-            theta, theta_prec := ThetaSeriesIncremental(L, target_prec, to_per_rep);
+            theta, theta_prec, rep_theta_elapsed := ThetaSeriesIncremental(L, target_prec, to_per_rep);
+            for p in Keys(rep_theta_elapsed) do
+                theta_elapsed[p] := IsDefined(theta_elapsed, p)
+                    select Maximum(theta_elapsed[p], rep_theta_elapsed[p]) else rep_theta_elapsed[p];
+            end for;
             lat["is_universal"] := "\\N";
             lat["is_even_universal"] := "\\N";
             if theta_prec gt 0 then
@@ -374,7 +440,7 @@ intrinsic FillGenus(label::MonStgElt : timeout := 1800)
     // We need to be able to look up hash functions for lattices that are not in the main
     // genus being processed.  So we write the hash function used to a separate file
     // so that it can be looked up when needed (see lookup_hash_function in connect_genus.m)
-    Write(Sprintf("genera_hash/%o", genus_hash), advanced["hash_function"] : Overwrite);
+    Write(Sprintf("genera_hash/%o", advanced["genus_hash"]), advanced["hash_function"] : Overwrite);
 
     // TODO: Compute ambient_lattice
 
