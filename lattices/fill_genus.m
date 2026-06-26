@@ -499,7 +499,7 @@ intrinsic FillGenus(label::MonStgElt : timeout := 1800)
     end for;
     // Now write hash data
     output := Join([Join([Sprintf("%o", to_postgres(lat[k])) : k in hash_format], "|") : lat in lats], "\n");
-    Write(LabelPath("lattice_hashes", n, s, advanced["genus_hash"] : Create), output : Overwrite);
+    Write(LabelPath("lattice_hashes", n, s, IntegerToString(advanced["genus_hash"]) : Create), output : Overwrite);
 
     error if Keys(basics) ne Set(basic_format), [k : k in basic_format | k notin Keys(basics)], [k : k in Keys(basics) | k notin basic_format];
     error if Keys(advanced) ne Set(advanced_format), [k : k in advanced_format | k notin Keys(advanced)], [k : k in Keys(advanced) | k notin advanced_format];
