@@ -29,7 +29,7 @@ function lookup_hash_function(genus_hash)
 end function;
 
 hash_format := Split(Split(Read("lat_hash.format"), "\n")[1], "|");
-function load_hash_data(genus_hash : as_assoc:=true)
+function load_hash_data(genus_hash, rank, nplus : as_assoc:=true)
     fname := Sprintf("lattice_hashes/%o", genus_hash); // TODO (David): should add folders
     if not OpenTest(fname, "r") then
         if as_assoc then return AssociativeArray(); else return []; end if;
@@ -67,13 +67,13 @@ intrinsic HashCache() -> Assoc
     return StoreGet(hash_cache, "cache");
 end intrinsic;
 
-intrinsic GetHashes(genus_hash::RngIntElt) -> Assoc
+intrinsic GetHashes(genus_hash::RngIntElt, rank::RngIntElt, nplus::RngIntElt) -> Assoc
 {Get an associative array with keys the possible hash values for lattices in the genus and values a sequence of strings matching the hash_format}
     cache := HashCache();
     if IsDefined(cache, genus_hash) then
         return cache[genus_hash];
     end if;
-    lats := load_hash_data(genus_hash);
+    lats := load_hash_data(genus_hash, rank, nplus);
     cache[genus_hash] := lats;
     StoreSet(hash_cache, "cache", cache);
     return lats;
@@ -126,6 +126,22 @@ intrinsic LatSortKey(label::MonStgElt) -> Tup
     pieces := Split(label, ".");
     // Sort by: rank, then signature (pos def first), then absolute det, then the label string as tiebreaker
     return <StringToInteger(pieces[1]), -StringToInteger(pieces[2]), StringToInteger(pieces[3]), label>;
+end intrinsic;
+
+intrinsic LabelPath(folder::MonStgElt, label::MonStgElt : Create := false) -> MonStgElt
+{The on-disk path "folder/rank/nplus/label" for a lattice or genus label of the
+ form rank.nplus.det.... .  Centralises the data directory layout so that a
+ future change to the folder scheme only needs editing here.  If Create is true,
+ the containing directory is created (mkdir -p) so the path is ready to write to.}
+    pieces := Split(label, ".");
+    require #pieces ge 2 : "label must have the form rank.nplus....";
+    rank := pieces[1];
+    nplus := pieces[2];                   // label is rank.nplus.det.... (see create_genus_label)
+    dir := Sprintf("%o/%o/%o", folder, rank, nplus);
+    if Create then
+        System("mkdir -p " * dir);
+    end if;
+    return Sprintf("%o/%o", dir, label);
 end intrinsic;
 
 intrinsic AutOrbits(L::Lat, A::GrpMat, vecs::SeqEnum) -> SeqEnum
