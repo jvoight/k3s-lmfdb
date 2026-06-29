@@ -90,7 +90,7 @@ intrinsic SetHashes(~lats::SeqEnum[Assoc], ~genus::Assoc, theta_elapsed::Assoc, 
         return;
     end if;
     level := lats[1]["level"];
-    det := lats[1]["det"];
+    det := lats[1]["disc_abs"];   // there is no "det" column; disc_abs is |determinant|
 
     thetas := Sort([<lat["theta_series"], lat["theta_prec"]> : lat in lats]);
     dprec := 0;
