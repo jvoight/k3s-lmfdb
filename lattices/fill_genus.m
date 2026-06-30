@@ -219,6 +219,7 @@ intrinsic FillGenus(label::MonStgElt : timeout := 1800)
     advanced["class_number"] := "\\N";
     advanced["adjacency_matrix"] := "\\N";
     advanced["adjacency_polynomials"] := "\\N";
+    advanced["ambient_lattice"] := "\\N";   // TODO: compute the ambient lattice
     if genus_success then
         reps := reps[1];
         vprintf FillGenus, 1 : "Number of genus representatives: %o\n", #reps;
@@ -291,6 +292,12 @@ intrinsic FillGenus(label::MonStgElt : timeout := 1800)
         lat["dual_theta_series"] := "\\N";
         lat["dual_theta_prec"] := "\\N";
         lat["successive_minima"] := "\\N";
+        // Only set below in the positive-definite (n eq s) branch; default them here
+        // so the indefinite case still has every column.
+        lat["center_density"] := "\\N";
+        lat["canonical_gram"] := "\\N";
+        lat["is_universal"] := "\\N";
+        lat["is_even_universal"] := "\\N";
         // Trying to reduce the size of the entries in the gram matrix
         gram0 := GramMatrix(L);
         gram := LLLGram(gram0);
@@ -310,6 +317,7 @@ intrinsic FillGenus(label::MonStgElt : timeout := 1800)
             if success then
                 canonical_gram := canonical_gram[1];
                 lat["gram"] := Eltseq(canonical_gram);
+                lat["canonical_gram"] := Eltseq(canonical_gram);
                 lat["gram_is_canonical"] := true;
             end if;
             success, aut_group, elapsed := TimeoutCall(to_per_rep, AutomorphismGroupFaster, <L>, 1);
@@ -355,7 +363,7 @@ intrinsic FillGenus(label::MonStgElt : timeout := 1800)
             if theta_prec gt 0 then
                 lat["theta_series"] := theta;
                 lat["theta_prec"] := theta_prec;
-                if lat["is_even"] then
+                if lat["is_even"] eq "T" then
                     lat["is_universal"] := false;
                     lat["is_even_universal"] := "\\N";
                     // 15 theorem
