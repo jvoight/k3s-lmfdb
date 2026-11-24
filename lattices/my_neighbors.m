@@ -3,6 +3,18 @@ import !"/Lattice/Lat/neighbors.m":BinaryNeighbors,SetDepth,TwoNeighbors,Adjust,
 // Attach("aut-char.mag");
 // import "aut-char.mag":AutomorphismGroupFaster;
 
+// The norm mod 8 of a characteristic vector w of the integral Gram matrix G
+// of odd determinant, i.e. (x, w) = (x, x) mod 2 for all x.  Any two choices
+// differ by 2y with (w, y) = (y, y) mod 2, so the norm is well defined mod 8; it
+// is the oddity of the unimodular Z_2-lattice with Gram matrix G.
+function char_norm_mod8(G)
+  G := ChangeRing(G, Z);
+  n := Nrows(G);
+  w := Solution(ChangeRing(G, GF(2)), Vector(GF(2), [G[i,i] : i in [1..n]]));
+  wz := ChangeRing(w, Z);
+  return InnerProduct(wz * G, wz) mod 8;
+end function;
+
 // dep now ignored; retained for backward compatibility
 function newTwoNeighbors(L, dep)
   Lambda := [ Parent(L) | ]; 
@@ -19,6 +31,24 @@ function newTwoNeighbors(L, dep)
   O := LineOrbits(G);
   vprint Genus,2: "Number of orbits:", #O;
   TA := 0;
+  // A 2-neighbour nb of L has the same determinant, and nb and L agree at every
+  // odd prime p (both contain L meet nb with index 2), so nb is in the genus of
+  // L exactly when its 2-adic genus is that of L.  Comparing Genus(nb) with
+  // Genus(L) diagonalised both at every prime dividing 2 det, for every
+  // neighbour, and was most of a rank-16 walk.
+  // When det L is odd, L is unimodular at 2, and a unimodular Z_2-lattice is
+  // determined by its rank, determinant, parity and oddity.  The oddity is the
+  // norm mod 8 of a characteristic vector (van der Blij), so the test needs one
+  // linear solve mod 2 instead of a 2-adic Jordan decomposition (on rank-16
+  // genera of odd determinant LocalGenus was 55-58% of the walk).
+  if IsOdd(Determinant(L)) then
+    oddity := char_norm_mod8(GramMatrix(L));
+    same_genus := func<nb | exists{i : i in [1..Nrows(G)] | IsOdd(G[i,i])} and char_norm_mod8(G) eq oddity
+                            where G is ChangeRing(GramMatrix(nb), Z)>;
+  else
+    gL2 := LocalGenus(L, 2);
+    same_genus := func<nb | LocalGenus(nb, 2) eq gL2>;
+  end if;
   for o in O do
     v := L ! o[1].1;
     if Norm(v) mod 4 eq 0 and not IsZero(v) then
@@ -30,7 +60,7 @@ function newTwoNeighbors(L, dep)
         nb := Neighbor(L,v,2);
         // I believe the issue here is only that sometimes we go from odd to
         // even and it isn't in the same genus
-        if Genus(nb) eq Genus(L) then
+        if same_genus(nb) then
           vprint Genus,2: "adding new lattice";
           Append(~Lambda,nb);
         end if;
@@ -42,7 +72,7 @@ function newTwoNeighbors(L, dep)
         // AdjoinNeighbor(~TA, ~Lambda, Neighbor(L,v,2), dep);
         try
           nb := Neighbor(L,v,2);
-          if Genus(nb) eq Genus(L) then
+          if same_genus(nb) then
             vprint Genus,2: "adding new lattice";
             Append(~Lambda,nb);
           end if;
